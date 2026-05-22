@@ -45,6 +45,28 @@ VIOLATION_LOG = REPO_ROOT / ".cdc" / "logs" / "violations.jsonl"
 # Files that require slogan footer
 SLOGAN_REQUIRED_EXTENSIONS = {".md", ".py", ".ps1", ".ts", ".tsx", ".vue", ".js"}
 
+# Files exempt from forbidden_words check
+# (these files exist to DEFINE or REFERENCE the forbidden words themselves)
+FORBIDDEN_WORDS_EXEMPT_FILES = {
+    ".cdc/CONSTITUTION.yaml",       # The constitution itself defines forbidden_words
+    "AGENTS.md",                    # Codex adapter output (renders constitution)
+    "CONVENTIONS.md",               # Aider adapter output
+    "CLAUDE.md.generated",          # Claude adapter output
+    ".cursorrules",                 # Cursor adapter output (legacy)
+    ".cursor/rules/cdc.mdc",        # Cursor adapter output (MDC)
+    ".antigravity/rules.md",        # Antigravity adapter output
+    ".claude/rules/_LEGACY_NOTICE.md",  # Legacy migration notice
+}
+
+# Directories whose contents are exempt from forbidden_words check
+FORBIDDEN_WORDS_EXEMPT_PATTERNS = (
+    ".cdc/adapters/",       # Adapter scripts reference forbidden words in templates
+    ".cdc/scripts/constitution_check.py",  # This file itself
+    "05_Reports/Report_CDC/",  # CDC reports often quote forbidden words for analysis
+    ".claude/rules/",       # Legacy rules retained for human reference
+    "01_Control_Tower/",    # Master constitution and audit files
+)
+
 
 class Violation:
     def __init__(self, rule: str, file: str, detail: str, severity: str = "BLOCK"):
@@ -151,8 +173,19 @@ def check_constitution_modification(staged_files: list[str]) -> list[Violation]:
     return violations
 
 
+def is_exempt_from_forbidden_words(file_path: str) -> bool:
+    """Return True if this file should skip forbidden_words check."""
+    normalized = file_path.replace("\\", "/")
+    if normalized in FORBIDDEN_WORDS_EXEMPT_FILES:
+        return True
+    for pattern in FORBIDDEN_WORDS_EXEMPT_PATTERNS:
+        if normalized.startswith(pattern):
+            return True
+    return False
+
+
 def check_forbidden_words(constitution: dict, staged_files: list[str]) -> list[Violation]:
-    """Check for forbidden words from 13 fatal errors."""
+    """Check for forbidden words from 13 fatal errors (with exemptions)."""
     violations: list[Violation] = []
     forbidden_words: set[str] = set()
     for err in constitution["fatal_errors"]:
@@ -165,6 +198,8 @@ def check_forbidden_words(constitution: dict, staged_files: list[str]) -> list[V
         ext = Path(file).suffix.lower()
         if ext not in text_extensions:
             continue
+        if is_exempt_from_forbidden_words(file):
+            continue  # Constitution-defining and adapter-output files are exempt
         content = get_staged_content(file).lower()
         if not content:
             continue

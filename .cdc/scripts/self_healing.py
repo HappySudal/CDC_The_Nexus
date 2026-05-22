@@ -169,6 +169,44 @@ class HealingOutcome:
     timeline: list[dict[str, Any]] = field(default_factory=list)
 
 
+def _error_signature(exc: BaseException) -> str:
+    """Stable signature for grouping similar errors."""
+    return f"{exc.__class__.__name__}:{str(exc)[:80]}"
+
+
+def _lookup_prior_solution(mem: Memory, signature: str) -> dict[str, Any] | None:
+    """Search lessons_learned for a matching prior-resolution lesson."""
+    for lesson in mem.recent_lessons(limit=500, agent=None):
+        ctx = (lesson.get("context") or "")
+        if signature in ctx:
+            return lesson
+    return None
+
+
+def _record_learned_pattern(
+    mem: Memory,
+    agent: str,
+    error_signature: str,
+    recovery_level: str,
+    action_name: str,
+    target: str | None,
+    attempts: int,
+) -> int:
+    """Persist a successful recovery as a reusable lesson."""
+    lesson_text = (
+        f"Error pattern '{error_signature}' was successfully recovered via {recovery_level} "
+        f"(action: {action_name}, target: {target or 'n/a'}, attempts: {attempts}). "
+        "Re-apply this recovery on recurrence."
+    )
+    return mem.record_lesson(
+        lesson=lesson_text,
+        agent=agent,
+        category="self_healing_pattern",
+        context=f"signature={error_signature};recovery={recovery_level};action={action_name}",
+        confidence=85,
+    )
+
+
 def heal(
     operation: Callable[[], Any],
     *,
@@ -190,6 +228,8 @@ def heal(
     started = datetime.now().isoformat(timespec="seconds")
     outcome.timeline.append({"phase": "start", "timestamp": started, "agent": agent, "action": action_name})
 
+    first_error_signature: str | None = None
+
     for attempt in range(1, max_attempts + 1):
         outcome.attempts = attempt
         try:
@@ -198,23 +238,49 @@ def heal(
             outcome.success = True
             outcome.result = result
             outcome.timeline.append({"phase": "success", "attempt": attempt, "timestamp": datetime.now().isoformat(timespec="seconds")})
+
+            # Pattern learning: persist successful recovery as a lesson
+            if attempt > 1 and first_error_signature and outcome.recovery_level_used:
+                lesson_id = _record_learned_pattern(
+                    mem, agent, first_error_signature,
+                    outcome.recovery_level_used, action_name, target, attempt,
+                )
+                outcome.timeline.append({
+                    "phase": "L5_pattern_learned",
+                    "lesson_id": lesson_id,
+                    "signature": first_error_signature,
+                })
+
             mem.log_action(
                 agent=agent, action_type=action_name, target=target or "",
                 outcome=f"success_after_{attempt}_attempts",
-                metadata={"recovery": outcome.recovery_level_used},
+                metadata={"recovery": outcome.recovery_level_used, "signature": first_error_signature},
             )
             return outcome
         except BaseException as exc:  # noqa: BLE001
             err_trace = traceback.format_exc(limit=3)
             outcome.final_error = f"{exc.__class__.__name__}: {exc}"
+            if first_error_signature is None:
+                first_error_signature = _error_signature(exc)
 
             # ---- L1 Isolation ----
             outcome.timeline.append({
                 "phase": "L1_isolation",
                 "attempt": attempt,
                 "error": outcome.final_error,
+                "signature": first_error_signature,
                 "timestamp": datetime.now().isoformat(timespec="seconds"),
             })
+
+            # ---- L1.5 Prior solution lookup ----
+            if attempt == 1:
+                prior = _lookup_prior_solution(mem, first_error_signature)
+                if prior:
+                    outcome.timeline.append({
+                        "phase": "L1.5_prior_solution_found",
+                        "lesson_id": prior["id"],
+                        "context": prior.get("context", ""),
+                    })
 
             # ---- L2 RCA ----
             level_key = classify_error(exc)

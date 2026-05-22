@@ -102,6 +102,12 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 <h2>System Status</h2>
 <div class="grid" id="stats-grid">Loading...</div>
 
+<h2>Violations by Agent (Donut)</h2>
+<div id="donut-chart" style="text-align:center; padding:16px;">Loading...</div>
+
+<h2>Violation Trend (Last 14 Days)</h2>
+<div id="trend-chart" style="background:#1c2030; border:1px solid #2d3340; border-radius:8px; padding:16px;">Loading...</div>
+
 <h2>Recent Violations</h2>
 <table id="violations-table"><thead><tr>
   <th>#</th><th>Time</th><th>Agent</th><th>Rule</th><th>Target</th><th>Status</th>
@@ -177,19 +183,98 @@ function renderLessons(rows) {
   </tr>`).join('');
 }
 
+// ----- SVG Chart Helpers -----
+function renderDonutChart(byAgent) {
+  const total = byAgent.reduce((s, a) => s + a.count, 0);
+  if (total === 0) {
+    document.getElementById('donut-chart').innerHTML =
+      '<div style="color:#8a93a8;">No violations recorded yet.</div>';
+    return;
+  }
+  const colors = ['#e57373', '#f9a825', '#6cb6ff', '#81c784', '#ba68c8', '#4fc3f7', '#ff8a65'];
+  let cumulative = 0;
+  const radius = 80, cx = 120, cy = 120, stroke = 30;
+  const slices = byAgent.map((a, i) => {
+    const frac = a.count / total;
+    const startAngle = cumulative * 2 * Math.PI - Math.PI / 2;
+    cumulative += frac;
+    const endAngle = cumulative * 2 * Math.PI - Math.PI / 2;
+    const x1 = cx + radius * Math.cos(startAngle);
+    const y1 = cy + radius * Math.sin(startAngle);
+    const x2 = cx + radius * Math.cos(endAngle);
+    const y2 = cy + radius * Math.sin(endAngle);
+    const largeArc = frac > 0.5 ? 1 : 0;
+    const path = `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2}`;
+    return `<path d="${path}" fill="none" stroke="${colors[i % colors.length]}" stroke-width="${stroke}" />`;
+  }).join('');
+  const legend = byAgent.map((a, i) => {
+    const pct = ((a.count / total) * 100).toFixed(1);
+    return `<div style="display:inline-block; margin:0 12px; font-size:13px;">
+      <span style="display:inline-block; width:12px; height:12px; background:${colors[i % colors.length]}; vertical-align:middle; margin-right:6px;"></span>
+      ${a.agent}: ${a.count} (${pct}%)
+    </div>`;
+  }).join('');
+  document.getElementById('donut-chart').innerHTML = `
+    <svg width="240" height="240" viewBox="0 0 240 240">
+      ${slices}
+      <text x="${cx}" y="${cy - 8}" text-anchor="middle" fill="#e3e6eb" font-size="32" font-weight="bold">${total}</text>
+      <text x="${cx}" y="${cy + 18}" text-anchor="middle" fill="#8a93a8" font-size="12">Total Violations</text>
+    </svg>
+    <div style="margin-top:12px;">${legend}</div>
+  `;
+}
+
+function renderTrendChart(trend) {
+  const days = trend.days || [];
+  const counts = trend.counts || [];
+  if (days.length === 0) {
+    document.getElementById('trend-chart').innerHTML =
+      '<div style="color:#8a93a8;">No trend data.</div>';
+    return;
+  }
+  const w = 800, h = 220, pad = 36;
+  const maxC = Math.max(1, ...counts);
+  const xStep = (w - 2 * pad) / Math.max(1, days.length - 1);
+  const points = counts.map((c, i) => {
+    const x = pad + i * xStep;
+    const y = h - pad - (c / maxC) * (h - 2 * pad);
+    return `${x},${y}`;
+  }).join(' ');
+  const bars = counts.map((c, i) => {
+    const x = pad + i * xStep - 8;
+    const barH = (c / maxC) * (h - 2 * pad);
+    const y = h - pad - barH;
+    return `<rect x="${x}" y="${y}" width="16" height="${barH}" fill="#6cb6ff" opacity="0.4"/>`
+         + `<text x="${pad + i * xStep}" y="${h - pad + 14}" text-anchor="middle" fill="#8a93a8" font-size="10">${days[i].substring(5)}</text>`
+         + (c > 0 ? `<text x="${pad + i * xStep}" y="${y - 4}" text-anchor="middle" fill="#e3e6eb" font-size="11">${c}</text>` : '');
+  }).join('');
+  document.getElementById('trend-chart').innerHTML = `
+    <svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">
+      <line x1="${pad}" y1="${h - pad}" x2="${w - pad}" y2="${h - pad}" stroke="#2d3340"/>
+      <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${h - pad}" stroke="#2d3340"/>
+      ${bars}
+      <polyline points="${points}" fill="none" stroke="#f0c674" stroke-width="2"/>
+    </svg>
+  `;
+}
+
 async function loadAll() {
   try {
-    const [status, stats, violations, summary, lessons] = await Promise.all([
+    const [status, stats, violations, summary, lessons, byAgent, trend] = await Promise.all([
       fetchJSON('/status'),
       fetchJSON('/api/stats'),
       fetchJSON('/api/violations?limit=15'),
       fetchJSON('/api/violations/summary'),
       fetchJSON('/api/lessons?limit=10'),
+      fetchJSON('/api/violations/by_agent'),
+      fetchJSON('/api/violations/trend?days=14'),
     ]);
     renderStats(stats, status);
     renderViolations(violations.rows || []);
     renderSummary(summary.rows || []);
     renderLessons(lessons.rows || []);
+    renderDonutChart(byAgent.rows || []);
+    renderTrendChart(trend);
   } catch (e) {
     document.getElementById('stats-grid').innerText = 'Error loading: ' + e.message;
   }
@@ -397,12 +482,51 @@ class ValidationHandler(BaseHTTPRequestHandler):
                 self._send_json(200, {"lessons": 0, "violations": 0, "actions": 0, "sessions": 0})
             return
 
-        # /api/violations — recent violations from memory.db
+        # /api/violations/summary — by rule
         if self.path.startswith("/api/violations/summary"):
             if _MEMORY_AVAILABLE:
                 self._send_json(200, {"rows": Memory().violation_counts_by_rule()})
             else:
                 self._send_json(200, {"rows": []})
+            return
+
+        # /api/violations/by_agent — donut chart data
+        if self.path.startswith("/api/violations/by_agent"):
+            if _MEMORY_AVAILABLE:
+                rows = Memory().recent_violations(limit=10000)
+                counter: dict[str, int] = {}
+                for r in rows:
+                    counter[r["agent"]] = counter.get(r["agent"], 0) + 1
+                self._send_json(200, {
+                    "rows": [{"agent": k, "count": v}
+                             for k, v in sorted(counter.items(), key=lambda kv: kv[1], reverse=True)]
+                })
+            else:
+                self._send_json(200, {"rows": []})
+            return
+
+        # /api/violations/trend — last N days bar/line chart data
+        if self.path.startswith("/api/violations/trend"):
+            try:
+                days = int(self._query_param("days", "14"))
+            except ValueError:
+                days = 14
+            if _MEMORY_AVAILABLE:
+                from datetime import timedelta
+                today = datetime.now().date()
+                buckets = {(today - timedelta(days=i)).isoformat(): 0 for i in range(days - 1, -1, -1)}
+                for r in Memory().recent_violations(limit=10000):
+                    ts = r.get("timestamp", "")
+                    day_key = ts[:10] if len(ts) >= 10 else ""
+                    if day_key in buckets:
+                        buckets[day_key] += 1
+                ordered = sorted(buckets.items())
+                self._send_json(200, {
+                    "days":   [d for d, _ in ordered],
+                    "counts": [c for _, c in ordered],
+                })
+            else:
+                self._send_json(200, {"days": [], "counts": []})
             return
 
         if self.path.startswith("/api/violations"):
