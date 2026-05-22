@@ -1,0 +1,16 @@
+# CDC dynamic state — never commit
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Runtime logs (regenerated)
+logs/*.jsonl
+logs/*.log
+logs/tier_0_acl_backup_*.txt
+
+# Live database (per-environment state)
+memory.db
+memory.db-journal
+memory.db-wal
+memory.db-shm
