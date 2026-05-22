@@ -26,6 +26,7 @@ Date: 2026-05-23
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -38,6 +39,9 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parent))
 from memory_backend import Memory  # noqa: E402
+
+
+CACHE_TTL_SECONDS = 86400  # 24 hours
 
 
 # ============================================================================
@@ -174,10 +178,45 @@ def synthesize(responses: list[ModelResponse]) -> tuple[str, int, str]:
     return ("split", 50, "Escalate to Chairman (2% sovereign space).")
 
 
-def verify(thesis: str, agent: str = "system") -> AntithesisResult:
-    """Run full Antithesis verification on a thesis."""
-    result = AntithesisResult(thesis=thesis, timestamp=datetime.now().isoformat(timespec="seconds"))
+def _hash_thesis(thesis: str) -> str:
+    return hashlib.sha256(thesis.encode("utf-8")).hexdigest()
 
+
+def verify(thesis: str, agent: str = "system", use_cache: bool = True) -> AntithesisResult:
+    """
+    Run full Antithesis verification on a thesis.
+
+    If use_cache=True and a cached verdict exists (within 24h TTL), reuse it
+    instead of calling external APIs. Cache misses always trigger live calls
+    and write the result back to the cache.
+    """
+    mem = Memory()
+    thesis_hash = _hash_thesis(thesis)
+    now_iso = datetime.now().isoformat(timespec="seconds")
+
+    # ---- Cache hit path ----
+    if use_cache:
+        cached = mem.antithesis_get(thesis_hash, ttl_seconds=CACHE_TTL_SECONDS)
+        if cached:
+            result = AntithesisResult(thesis=thesis, timestamp=now_iso)
+            result.consensus = cached["consensus"]
+            result.confidence = int(cached["confidence"])
+            result.recommendation = cached["recommendation"] or ""
+            for r in json.loads(cached.get("responses_json") or "[]"):
+                result.responses.append(ModelResponse(
+                    model=r.get("model", "?"),
+                    verdict=r.get("verdict", "unknown"),
+                    error=r.get("error"),
+                ))
+            mem.log_action(
+                agent=agent, action_type="antithesis_verify",
+                target=thesis[:200], outcome=f"{result.consensus} (cache)",
+                metadata={"confidence": result.confidence, "cache_hit": True},
+            )
+            return result
+
+    # ---- Cache miss path ----
+    result = AntithesisResult(thesis=thesis, timestamp=now_iso)
     for model_key in MODELS.keys():
         result.responses.append(call_model(model_key, thesis))
 
@@ -186,16 +225,22 @@ def verify(thesis: str, agent: str = "system") -> AntithesisResult:
     result.confidence = confidence
     result.recommendation = recommendation
 
-    # Record to memory
-    mem = Memory()
+    # Persist to cache (only when at least one model was reachable)
+    available = [r for r in result.responses if r.verdict not in ("unavailable", "unknown")]
+    if use_cache and available:
+        mem.antithesis_put(
+            thesis_hash, thesis, consensus, confidence, recommendation,
+            [{"model": r.model, "verdict": r.verdict, "error": r.error}
+             for r in result.responses],
+        )
+
     mem.log_action(
-        agent=agent,
-        action_type="antithesis_verify",
-        target=thesis[:200],
-        outcome=consensus,
+        agent=agent, action_type="antithesis_verify",
+        target=thesis[:200], outcome=consensus,
         metadata={
             "confidence": confidence,
             "recommendation": recommendation,
+            "cache_hit": False,
             "responses": [
                 {"model": r.model, "verdict": r.verdict, "error": r.error}
                 for r in result.responses

@@ -192,7 +192,18 @@ def _record_learned_pattern(
     target: str | None,
     attempts: int,
 ) -> int:
-    """Persist a successful recovery as a reusable lesson."""
+    """
+    Persist a successful recovery as a reusable lesson with dedup.
+
+    If a lesson with the same signature+recovery already exists, bump its
+    confidence instead of creating a duplicate. Returns the lesson id.
+    """
+    context = f"signature={error_signature};recovery={recovery_level};action={action_name}"
+    existing = mem.find_lesson_by_context(f"signature={error_signature};recovery={recovery_level}")
+    if existing:
+        new_conf = mem.bump_lesson_confidence(existing["id"], delta=2)
+        return int(existing["id"])
+
     lesson_text = (
         f"Error pattern '{error_signature}' was successfully recovered via {recovery_level} "
         f"(action: {action_name}, target: {target or 'n/a'}, attempts: {attempts}). "
@@ -202,7 +213,7 @@ def _record_learned_pattern(
         lesson=lesson_text,
         agent=agent,
         category="self_healing_pattern",
-        context=f"signature={error_signature};recovery={recovery_level};action={action_name}",
+        context=context,
         confidence=85,
     )
 

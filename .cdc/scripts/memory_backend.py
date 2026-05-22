@@ -97,6 +97,17 @@ CREATE TABLE IF NOT EXISTS session_continuity (
     last_action TEXT,
     state_json  TEXT
 );
+
+CREATE TABLE IF NOT EXISTS antithesis_cache (
+    thesis_hash TEXT    PRIMARY KEY,
+    thesis      TEXT    NOT NULL,
+    consensus   TEXT    NOT NULL,
+    confidence  INTEGER NOT NULL,
+    recommendation TEXT,
+    responses_json TEXT,
+    cached_at   TEXT    NOT NULL,
+    hit_count   INTEGER DEFAULT 0
+);
 """
 
 
@@ -159,6 +170,27 @@ class Memory:
     def validate_lesson(self, lesson_id: int) -> None:
         with self._conn() as c:
             c.execute("UPDATE lessons_learned SET validated=1 WHERE id=?", (lesson_id,))
+
+    def find_lesson_by_context(self, context_substring: str) -> dict[str, Any] | None:
+        """Return the most recent lesson whose context contains the substring."""
+        with self._conn() as c:
+            row = c.execute(
+                """SELECT * FROM lessons_learned
+                   WHERE context LIKE ?
+                   ORDER BY id DESC LIMIT 1""",
+                (f"%{context_substring}%",),
+            ).fetchone()
+            return dict(row) if row else None
+
+    def bump_lesson_confidence(self, lesson_id: int, delta: int = 1, cap: int = 99) -> int:
+        """Increase a lesson's confidence (capped). Returns new confidence."""
+        with self._conn() as c:
+            row = c.execute("SELECT confidence FROM lessons_learned WHERE id=?", (lesson_id,)).fetchone()
+            if not row:
+                return -1
+            new_conf = min(cap, int(row["confidence"] or 0) + delta)
+            c.execute("UPDATE lessons_learned SET confidence=? WHERE id=?", (new_conf, lesson_id))
+            return new_conf
 
     # ------------------------------------------------------------------
     # Violations
@@ -291,7 +323,56 @@ class Memory:
                 "violations": c.execute("SELECT COUNT(*) FROM violations_history").fetchone()[0],
                 "actions": c.execute("SELECT COUNT(*) FROM agent_actions").fetchone()[0],
                 "sessions": c.execute("SELECT COUNT(*) FROM session_continuity").fetchone()[0],
+                "antithesis_cache": c.execute("SELECT COUNT(*) FROM antithesis_cache").fetchone()[0],
             }
+
+    # ------------------------------------------------------------------
+    # Antithesis cache (24h TTL by default)
+    # ------------------------------------------------------------------
+    def antithesis_get(self, thesis_hash: str, ttl_seconds: int = 86400) -> dict[str, Any] | None:
+        from datetime import datetime as _dt, timedelta
+        with self._conn() as c:
+            row = c.execute(
+                "SELECT * FROM antithesis_cache WHERE thesis_hash=?", (thesis_hash,),
+            ).fetchone()
+            if not row:
+                return None
+            cached_at = _dt.fromisoformat(row["cached_at"])
+            if _dt.now() - cached_at > timedelta(seconds=ttl_seconds):
+                return None  # expired
+            c.execute(
+                "UPDATE antithesis_cache SET hit_count = hit_count + 1 WHERE thesis_hash=?",
+                (thesis_hash,),
+            )
+            return dict(row)
+
+    def antithesis_put(
+        self,
+        thesis_hash: str,
+        thesis: str,
+        consensus: str,
+        confidence: int,
+        recommendation: str,
+        responses: list[dict[str, Any]],
+    ) -> None:
+        from datetime import datetime as _dt
+        with self._conn() as c:
+            c.execute(
+                """INSERT INTO antithesis_cache
+                   (thesis_hash, thesis, consensus, confidence, recommendation, responses_json, cached_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(thesis_hash) DO UPDATE SET
+                     consensus=excluded.consensus,
+                     confidence=excluded.confidence,
+                     recommendation=excluded.recommendation,
+                     responses_json=excluded.responses_json,
+                     cached_at=excluded.cached_at""",
+                (
+                    thesis_hash, thesis, consensus, confidence, recommendation,
+                    json.dumps(responses, ensure_ascii=False),
+                    _dt.now().isoformat(timespec="seconds"),
+                ),
+            )
 
 
 # ============================================================================

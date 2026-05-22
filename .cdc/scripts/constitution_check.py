@@ -184,8 +184,53 @@ def is_exempt_from_forbidden_words(file_path: str) -> bool:
     return False
 
 
+def _word_is_in_code_context(content: str, word: str, file_ext: str) -> bool:
+    """
+    Heuristic: detect whether the forbidden word appears only in a
+    programming-language construct rather than in natural-language prose.
+
+    Currently handles Python `final` (typing.Final, @final, Final[...]) and
+    similar code-only usage where flagging would be a false positive.
+    """
+    if file_ext != ".py":
+        return False
+
+    word_lower = word.lower()
+    if word_lower != "final":
+        return False  # Only "final" has a Python-specific code meaning
+
+    # Strict pattern set for Python `final` in code context
+    import re as _re
+    code_patterns = [
+        r"\bfrom\s+typing\s+import[^\n]*\bFinal\b",  # from typing import Final
+        r"\btyping\.Final\b",                         # typing.Final
+        r"\bFinal\[",                                 # Final[int]
+        r"@final\b",                                  # @final decorator
+        r":\s*Final\b",                               # x: Final = ...
+        r"\bfinal\s*=\s*",                            # Python variable named "final"
+    ]
+    # Count code-context matches
+    code_hits = sum(len(_re.findall(p, content)) for p in code_patterns)
+
+    # Count total lowercase "final" occurrences as standalone word
+    total_hits = len(_re.findall(r"\bfinal\b", content.lower()))
+
+    # If every "final" is accounted for by code patterns, exempt
+    return code_hits >= total_hits and total_hits > 0
+
+
 def check_forbidden_words(constitution: dict, staged_files: list[str]) -> list[Violation]:
-    """Check for forbidden words from 13 fatal errors (with exemptions)."""
+    """
+    Check for forbidden words from 13 fatal errors (with exemptions).
+
+    Matching uses word boundaries for ASCII words (e.g., 'final', 'sorry')
+    to avoid false positives like 'finally' or 'final_error' that contain
+    the word as a substring of another identifier.
+
+    For non-ASCII/CJK words (e.g., '명일', '시간 낭비') we fall back to
+    substring matching since regex \\b does not respect CJK boundaries.
+    """
+    import re as _re
     violations: list[Violation] = []
     forbidden_words: set[str] = set()
     for err in constitution["fatal_errors"]:
@@ -199,20 +244,36 @@ def check_forbidden_words(constitution: dict, staged_files: list[str]) -> list[V
         if ext not in text_extensions:
             continue
         if is_exempt_from_forbidden_words(file):
-            continue  # Constitution-defining and adapter-output files are exempt
-        content = get_staged_content(file).lower()
+            continue
+        content = get_staged_content(file)
         if not content:
             continue
+        content_lower = content.lower()
+
         for word in forbidden_words:
-            if word in content:
-                violations.append(
-                    Violation(
-                        rule="FORBIDDEN_WORD",
-                        file=file,
-                        detail=f"Forbidden word detected: '{word}'",
-                        severity="WARN",
-                    )
+            is_ascii_word = word.isascii() and word.replace(" ", "").isalpha()
+            if is_ascii_word:
+                # Word-boundary regex — avoid matching identifiers like 'final_error'
+                pattern = rf"\b{_re.escape(word)}\b"
+                if not _re.search(pattern, content_lower):
+                    continue
+            else:
+                # CJK / mixed: simple substring check
+                if word not in content_lower:
+                    continue
+
+            # Code-context exemption (typing.Final, etc.)
+            if _word_is_in_code_context(content, word, ext):
+                continue
+
+            violations.append(
+                Violation(
+                    rule="FORBIDDEN_WORD",
+                    file=file,
+                    detail=f"Forbidden word detected: '{word}'",
+                    severity="WARN",
                 )
+            )
     return violations
 
 

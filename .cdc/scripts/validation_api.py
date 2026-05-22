@@ -70,6 +70,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <title>CDC Chairman Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   body { font-family: 'Segoe UI', sans-serif; margin: 0; padding: 24px;
          background: #0f1117; color: #e3e6eb; }
@@ -81,8 +82,10 @@ DASHBOARD_HTML = """<!DOCTYPE html>
           padding: 16px; }
   .card .label { color: #8a93a8; font-size: 12px; text-transform: uppercase; }
   .card .value { font-size: 36px; font-weight: bold; color: #6cb6ff; margin-top: 4px; }
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
-  th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #2d3340; }
+  th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #2d3340;
+           white-space: nowrap; }
   th { background: #1c2030; color: #8a93a8; font-weight: normal; }
   tr:hover { background: #161927; }
   .rule { font-family: 'Cascadia Code', monospace; color: #e57373; }
@@ -94,6 +97,27 @@ DASHBOARD_HTML = """<!DOCTYPE html>
   .badge-warn { background: #f9a825; color: black; }
   .footer { margin-top: 48px; color: #8a93a8; font-size: 12px; text-align: center; }
   .refresh { float: right; color: #6cb6ff; cursor: pointer; font-size: 12px; }
+
+  /* Mobile responsive: < 768px */
+  @media (max-width: 768px) {
+    body { padding: 12px; }
+    h1 { font-size: 1.3em; }
+    h2 { font-size: 1.1em; margin-top: 20px; }
+    .grid { grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 16px 0; }
+    .card { padding: 10px; }
+    .card .label { font-size: 10px; }
+    .card .value { font-size: 24px; }
+    table { font-size: 11px; }
+    th, td { padding: 6px 8px; }
+    .refresh { display: block; float: none; margin-top: 8px; }
+    #donut-chart svg { width: 180px; height: 180px; }
+    #trend-chart { padding: 8px; }
+  }
+
+  /* Tablet: 768px - 1024px */
+  @media (min-width: 768px) and (max-width: 1024px) {
+    .grid { grid-template-columns: repeat(3, 1fr); }
+  }
 </style>
 </head>
 <body>
@@ -109,19 +133,24 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 <div id="trend-chart" style="background:#1c2030; border:1px solid #2d3340; border-radius:8px; padding:16px;">Loading...</div>
 
 <h2>Recent Violations</h2>
-<table id="violations-table"><thead><tr>
+<div class="table-wrap"><table id="violations-table"><thead><tr>
   <th>#</th><th>Time</th><th>Agent</th><th>Rule</th><th>Target</th><th>Status</th>
-</tr></thead><tbody></tbody></table>
+</tr></thead><tbody></tbody></table></div>
 
 <h2>Violation Summary (by Rule)</h2>
-<table id="summary-table"><thead><tr>
+<div class="table-wrap"><table id="summary-table"><thead><tr>
   <th>Rule</th><th>Count</th>
-</tr></thead><tbody></tbody></table>
+</tr></thead><tbody></tbody></table></div>
+
+<h2>Self-Healing Pattern Catalog</h2>
+<div class="table-wrap"><table id="patterns-table"><thead><tr>
+  <th>#</th><th>Learned</th><th>Recovery Level</th><th>Action</th><th>Confidence</th><th>Pattern</th>
+</tr></thead><tbody></tbody></table></div>
 
 <h2>Recent Lessons Learned</h2>
-<table id="lessons-table"><thead><tr>
+<div class="table-wrap"><table id="lessons-table"><thead><tr>
   <th>#</th><th>Time</th><th>Agent</th><th>Category</th><th>Lesson</th>
-</tr></thead><tbody></tbody></table>
+</tr></thead><tbody></tbody></table></div>
 
 <div class="footer">
   &quot;시각(時刻)에 존재하고, 시간(時間)에 소멸한다.&quot; / &quot;Exists in the Moment, Vanishes in Time.&quot;
@@ -181,6 +210,25 @@ function renderLessons(rows) {
     <td>${r.category || '-'}</td>
     <td>${r.lesson}</td>
   </tr>`).join('');
+}
+
+function renderPatterns(rows) {
+  const tbody = document.querySelector('#patterns-table tbody');
+  if (rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="color:#8a93a8;">No patterns learned yet. Self-Healing will populate this as errors are recovered.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => {
+    const confColor = r.confidence >= 95 ? '#81c784' : r.confidence >= 85 ? '#6cb6ff' : '#f0c674';
+    return `<tr>
+      <td>${r.id}</td>
+      <td class="timestamp">${r.timestamp}</td>
+      <td class="rule">${r.recovery}</td>
+      <td>${r.action}</td>
+      <td style="color:${confColor};">${r.confidence}%</td>
+      <td><code>${r.signature.substring(0, 60)}</code></td>
+    </tr>`;
+  }).join('');
 }
 
 // ----- SVG Chart Helpers -----
@@ -260,7 +308,7 @@ function renderTrendChart(trend) {
 
 async function loadAll() {
   try {
-    const [status, stats, violations, summary, lessons, byAgent, trend] = await Promise.all([
+    const [status, stats, violations, summary, lessons, byAgent, trend, patterns] = await Promise.all([
       fetchJSON('/status'),
       fetchJSON('/api/stats'),
       fetchJSON('/api/violations?limit=15'),
@@ -268,6 +316,7 @@ async function loadAll() {
       fetchJSON('/api/lessons?limit=10'),
       fetchJSON('/api/violations/by_agent'),
       fetchJSON('/api/violations/trend?days=14'),
+      fetchJSON('/api/patterns'),
     ]);
     renderStats(stats, status);
     renderViolations(violations.rows || []);
@@ -275,6 +324,7 @@ async function loadAll() {
     renderLessons(lessons.rows || []);
     renderDonutChart(byAgent.rows || []);
     renderTrendChart(trend);
+    renderPatterns(patterns.rows || []);
   } catch (e) {
     document.getElementById('stats-grid').innerText = 'Error loading: ' + e.message;
   }
@@ -548,6 +598,29 @@ class ValidationHandler(BaseHTTPRequestHandler):
                 limit = 20
             if _MEMORY_AVAILABLE:
                 self._send_json(200, {"rows": Memory().recent_lessons(limit)})
+            else:
+                self._send_json(200, {"rows": []})
+            return
+
+        # /api/patterns — self-healing pattern catalog
+        if self.path.startswith("/api/patterns"):
+            if _MEMORY_AVAILABLE:
+                rows = Memory().recent_lessons(limit=200)
+                patterns = []
+                for r in rows:
+                    if r.get("category") != "self_healing_pattern":
+                        continue
+                    ctx = r.get("context") or ""
+                    parts = dict(p.split("=", 1) for p in ctx.split(";") if "=" in p)
+                    patterns.append({
+                        "id": r["id"],
+                        "timestamp": r["timestamp"],
+                        "signature": parts.get("signature", ""),
+                        "recovery": parts.get("recovery", ""),
+                        "action": parts.get("action", ""),
+                        "confidence": r.get("confidence", 0),
+                    })
+                self._send_json(200, {"rows": patterns})
             else:
                 self._send_json(200, {"rows": []})
             return
