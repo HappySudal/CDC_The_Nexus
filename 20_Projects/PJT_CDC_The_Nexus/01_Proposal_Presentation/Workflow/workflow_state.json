@@ -1,0 +1,22 @@
+{
+  "project": "PJT_CDC_The_Nexus",
+  "version": "0.3.0",
+  "current_stage": 6,
+  "current_cycle": 1,
+  "cycles": [
+    {
+      "cycle_num": 1,
+      "started_at": "2026-05-23 18:36:53",
+      "completed_at": null,
+      "exit_decision": null,
+      "stages_completed": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    }
+  ],
+  "last_updated": "2026-05-23 18:49:15"
+}

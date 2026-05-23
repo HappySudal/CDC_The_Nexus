@@ -71,6 +71,63 @@
 - `.claude/rules/**`
 - `01_Control_Tower/**`
 
+## Project Buildup Workflow (7-Stage with Loop)
+
+**Authority**: Chairman Sudal direct directive (2026-05-23)  
+**Applies to**: ALL projects under 20_Projects/ — 예외 없음  
+**Loop Scope**: STEP 2 through STEP 6 — repeat until goal achieved  
+**Loop Exit Gate**: STEP 6 검수에서 의장님 '목적/목표 달성' 판정
+
+### Stages
+
+| # | Stage (KR) | Stage (EN) | Owner | Type | Loop |
+|:---:|:---|:---|:---|:---|:---:|
+| 1 | 기획 | Planning | Chairman + AI Agents | 🅒 chairman_gate | — |
+| 2 | 공정관리계획표 작성 | Process Planning | AI Agents | 🅐 auto | 🔄 |
+| 3 | 개발 | Development | AI Agents | 🅐 auto | 🔄 |
+| 4 | 검토 | Review | Chairman | 🅒 chairman_gate | 🔄 |
+| 5 | 수정/개선 | Improvement | AI Agents | 🅐 auto | 🔄 |
+| 6 | 검수 | Verification | Chairman | 🅒 chairman_gate_with_loop_decision | 🔄 |
+| 7 | 배포 | Deployment | AI Agents | 🅐 auto | — |
+
+**Legend**: 🅒 = Chairman gate (2% sovereignty) | 🅐 = AI auto (98% automation) | 🔄 = Loop member
+
+### Loop Logic
+
+- **entry**: STEP 1 완료 후 STEP 2 진입
+- **cycle**: STEP 2 → 3 → 4 → 5 → 6
+- **exit_condition**: STEP 6에서 의장님이 '목적/목표 달성' 판정
+- **re_entry**: 미달성 시 STEP 2로 복귀하여 다음 사이클 (Cycle N+1) 시작
+- **no_max_iterations**: 달성 시까지 무제한 — 의장님 판단이 유일한 종료 조건
+
+### Agent Directives (MUST FOLLOW)
+
+**MUST**:
+- 프로젝트 진입 시 PROJECT_GOALS.md 반드시 로드
+- 현재 사이클 번호와 STEP 위치 파악
+- Chairman 게이트(STEP 1, 4, 6)에서는 의장님 결정 대기
+- Auto 단계(STEP 2, 3, 5, 7)에서는 자율 집행
+- 각 사이클 종료 시 산출물을 cycles/cycle_{N}/ 에 보관
+
+**FORBIDDEN**:
+- ❌ Chairman 게이트를 우회한 임의 진행
+- ❌ PROJECT_GOALS.md 무단 수정 (목표는 STEP 1에서만 결정)
+- ❌ 사이클 카운터 임의 조작
+- ❌ STEP 7 (배포)를 STEP 6 승인 없이 실행
+
+### Per-Cycle Output Artifacts
+
+Each cycle (N=1,2,3...) MUST produce these artifacts under `01_Proposal_Presentation/Workflow/cycles/cycle_{N}/`:
+
+- `CYCLE_{N}_PLAN.md` (STEP 2 출력)
+- `CYCLE_{N}_DEV_REPORT.md` (STEP 3 출력)
+- `FEEDBACK_CYCLE_{N}.md` (STEP 4 출력)
+- `CYCLE_{N}_FIX_REPORT.md` (STEP 5 출력)
+- `VERIFICATION_CYCLE_{N}.md` (STEP 6 출력)
+
+Goal document (`PROJECT_GOALS.md`) is immutable after STEP 1 — never modify in subsequent cycles.
+
+
 ## Cursor-Specific Guidance
 
 Cursor supports Agent Mode and MCP. Use MCP servers for tool gateway.

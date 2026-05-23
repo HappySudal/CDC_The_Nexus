@@ -121,6 +121,82 @@ def render_header(agent_name: str, constitution: dict[str, Any]) -> str:
     )
 
 
+def render_project_workflow(constitution: dict[str, Any]) -> str:
+    """Render the 7-stage project buildup workflow with loop.
+
+    Authority: Chairman Sudal direct directive (2026-05-23).
+    Applies to ALL projects under 20_Projects/.
+    """
+    wf = constitution.get("project_buildup_workflow")
+    if not wf:
+        return ""
+
+    lines = [
+        "## Project Buildup Workflow (7-Stage with Loop)",
+        "",
+        f"**Authority**: {wf.get('authority', '-')}  ",
+        f"**Applies to**: {wf.get('applies_to', '-')}  ",
+        f"**Loop Scope**: {wf.get('loop_scope', '-')}  ",
+        f"**Loop Exit Gate**: {wf.get('loop_exit_gate', '-')}",
+        "",
+        "### Stages",
+        "",
+        "| # | Stage (KR) | Stage (EN) | Owner | Type | Loop |",
+        "|:---:|:---|:---|:---|:---|:---:|",
+    ]
+    for s in wf.get("stages", []):
+        in_loop = "🔄" if s.get("loop_member") else "—"
+        gate = "🅒" if s.get("type", "").startswith("chairman") else "🅐"
+        lines.append(
+            f"| {s['idx']} | {s['name_kr']} | {s['name_en']} | {s['owner']} | {gate} {s['type']} | {in_loop} |"
+        )
+
+    lines.extend([
+        "",
+        "**Legend**: 🅒 = Chairman gate (2% sovereignty) | 🅐 = AI auto (98% automation) | 🔄 = Loop member",
+        "",
+        "### Loop Logic",
+        "",
+    ])
+    loop = wf.get("loop_logic", {})
+    for k, v in loop.items():
+        lines.append(f"- **{k}**: {v}")
+
+    lines.extend([
+        "",
+        "### Agent Directives (MUST FOLLOW)",
+        "",
+    ])
+    directives = wf.get("agent_directives", {})
+    if "all_agents_must" in directives:
+        lines.append("**MUST**:")
+        for item in directives["all_agents_must"]:
+            lines.append(f"- {item}")
+        lines.append("")
+    if "forbidden" in directives:
+        lines.append("**FORBIDDEN**:")
+        for item in directives["forbidden"]:
+            lines.append(f"- ❌ {item}")
+        lines.append("")
+
+    lines.extend([
+        "### Per-Cycle Output Artifacts",
+        "",
+        "Each cycle (N=1,2,3...) MUST produce these artifacts under `01_Proposal_Presentation/Workflow/cycles/cycle_{N}/`:",
+        "",
+        "- `CYCLE_{N}_PLAN.md` (STEP 2 출력)",
+        "- `CYCLE_{N}_DEV_REPORT.md` (STEP 3 출력)",
+        "- `FEEDBACK_CYCLE_{N}.md` (STEP 4 출력)",
+        "- `CYCLE_{N}_FIX_REPORT.md` (STEP 5 출력)",
+        "- `VERIFICATION_CYCLE_{N}.md` (STEP 6 출력)",
+        "",
+        "Goal document (`PROJECT_GOALS.md`) is immutable after STEP 1 — never modify in subsequent cycles.",
+        "",
+    ])
+
+    return "\n".join(lines)
+
+
 def render_footer() -> str:
     """Render a standardized footer with slogan."""
     return (

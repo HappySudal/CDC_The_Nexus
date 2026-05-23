@@ -603,6 +603,160 @@ sop_31_checklist:
     overall_quality: 96.5
 
 # ============================================================================
+# PROJECT BUILDUP WORKFLOW — Chairman-mandated 7-stage workflow with loop
+# Effective: 2026-05-23 | Authority: Chairman Sudal direct directive
+# Scope: ALL projects under 20_Projects/ and any new project
+# ============================================================================
+project_buildup_workflow:
+  description: |
+    의장님이 정의한 모든 프로젝트의 표준 빌드업 프로세스.
+    7단계로 구성되며 2-6단계는 목적/목표 달성 시까지 루프.
+    이 워크플로우는 .claude/rules/rule_*.md의 SOVEREIGN PROTOCOL과 별개 층위이며,
+    PROJECT 레벨의 build-up 프로세스를 정의한다.
+    (SOVEREIGN PROTOCOL = 매 지시에 대한 응답 프로토콜 / Workflow = 프로젝트 수명주기)
+  authority: "Chairman Sudal direct directive (2026-05-23)"
+  applies_to: "ALL projects under 20_Projects/ — 예외 없음"
+  loop_scope: "STEP 2 through STEP 6 — repeat until goal achieved"
+  loop_exit_gate: "STEP 6 검수에서 의장님 '목적/목표 달성' 판정"
+
+  stages:
+    - idx: 1
+      name_kr: "기획"
+      name_en: "Planning"
+      owner: "Chairman + AI Agents"
+      type: "chairman_gate"
+      action: "변증법적 질의응답으로 목적/목표 수립"
+      sub_steps:
+        - "AI Agents가 질문 제기"
+        - "Chairman이 응답하며 목적 명시"
+        - "AI Agents가 목표를 명문화"
+        - "Chairman 최종 확정"
+      output_artifacts:
+        - "PROJECT_GOALS.md (불변 목표 문서)"
+      loop_member: false
+
+    - idx: 2
+      name_kr: "공정관리계획표 작성"
+      name_en: "Process Planning"
+      owner: "AI Agents"
+      type: "auto"
+      action: "현재 갭 분석 + 이번 사이클 작업 정의 + 일정 수립"
+      sub_steps:
+        - "PROJECT_GOALS.md 로드"
+        - "현재 진행도 자동 계산"
+        - "갭 분석 (목표 - 현재)"
+        - "이번 사이클 처리할 작업 목록화"
+        - "우선순위 + 일정 자동 스케줄"
+      output_artifacts:
+        - "CYCLE_{N}_PLAN.md (N차 사이클 계획표)"
+      loop_member: true
+      loop_entry_point: true
+
+    - idx: 3
+      name_kr: "개발"
+      name_en: "Development"
+      owner: "AI Agents"
+      type: "auto"
+      action: "공정관리계획표대로 코드/문서/기능 구현"
+      sub_steps:
+        - "Harness 기반 코드 작성"
+        - "단위 테스트 작성"
+        - "통합 테스트 실행"
+        - "Phase 3 자체 검증"
+      output_artifacts:
+        - "소스 코드 + 테스트 코드"
+        - "CYCLE_{N}_DEV_REPORT.md"
+      loop_member: true
+
+    - idx: 4
+      name_kr: "검토"
+      name_en: "Review"
+      owner: "Chairman"
+      type: "chairman_gate"
+      action: "Chairman이 개발 산출물 검토 후 피드백 제시"
+      sub_steps:
+        - "CHECKPOINT_REVIEW.md 검토"
+        - "기능/품질/적합성 평가"
+        - "피드백 작성 (Critical/High/Medium/Low)"
+      output_artifacts:
+        - "FEEDBACK_CYCLE_{N}.md"
+      loop_member: true
+
+    - idx: 5
+      name_kr: "수정/개선"
+      name_en: "Improvement"
+      owner: "AI Agents"
+      type: "auto"
+      action: "검토 피드백을 자동 파싱하여 수정 작업 집행"
+      sub_steps:
+        - "feedback_parser.py로 우선순위 분류"
+        - "RCA + Antithesis 3-모델 검증"
+        - "코드 수정 + 회귀 테스트"
+        - "결과 자동 보고"
+      output_artifacts:
+        - "CYCLE_{N}_FIX_REPORT.md"
+      loop_member: true
+
+    - idx: 6
+      name_kr: "검수"
+      name_en: "Verification"
+      owner: "Chairman"
+      type: "chairman_gate_with_loop_decision"
+      action: "Chairman이 목적/목표 달성 여부 판정"
+      sub_steps:
+        - "수정사항 반영 확인"
+        - "목표 달성률 평가"
+        - "달성 판정: [✅ 달성 → STEP 7] / [❌ 미달성 → STEP 2 복귀]"
+      output_artifacts:
+        - "VERIFICATION_CYCLE_{N}.md"
+        - "Chairman 디지털 서명 (달성 시)"
+      loop_member: true
+      loop_exit_decision: true
+
+    - idx: 7
+      name_kr: "배포"
+      name_en: "Deployment"
+      owner: "AI Agents"
+      type: "auto"
+      action: "최종 산출물 패키징 + Release"
+      sub_steps:
+        - "빌드 무결성 검증 (Hash)"
+        - "배포용 ZIP/Installer 생성"
+        - "Release Note 자동 생성"
+        - "CHANGELOG.md + README.md 갱신"
+        - "06_Releases/ 보관"
+      output_artifacts:
+        - "TheNexus_v{version}_{platform}.zip"
+        - "RELEASE_NOTE_v{version}.md"
+        - "Deployment Report"
+      loop_member: false
+
+  loop_logic:
+    entry: "STEP 1 완료 후 STEP 2 진입"
+    cycle: "STEP 2 → 3 → 4 → 5 → 6"
+    exit_condition: "STEP 6에서 의장님이 '목적/목표 달성' 판정"
+    re_entry: "미달성 시 STEP 2로 복귀하여 다음 사이클 (Cycle N+1) 시작"
+    no_max_iterations: "달성 시까지 무제한 — 의장님 판단이 유일한 종료 조건"
+
+  state_management:
+    state_file: "{project_root}/01_Proposal_Presentation/Workflow/workflow_state.json"
+    cycle_artifacts_dir: "{project_root}/01_Proposal_Presentation/Workflow/cycles/"
+    goal_doc: "{project_root}/01_Proposal_Presentation/Documents/PROJECT_GOALS.md"
+
+  agent_directives:
+    all_agents_must:
+      - "프로젝트 진입 시 PROJECT_GOALS.md 반드시 로드"
+      - "현재 사이클 번호와 STEP 위치 파악"
+      - "Chairman 게이트(STEP 1, 4, 6)에서는 의장님 결정 대기"
+      - "Auto 단계(STEP 2, 3, 5, 7)에서는 자율 집행"
+      - "각 사이클 종료 시 산출물을 cycles/cycle_{N}/ 에 보관"
+    forbidden:
+      - "Chairman 게이트를 우회한 임의 진행"
+      - "PROJECT_GOALS.md 무단 수정 (목표는 STEP 1에서만 결정)"
+      - "사이클 카운터 임의 조작"
+      - "STEP 7 (배포)를 STEP 6 승인 없이 실행"
+
+# ============================================================================
 # LEGACY INTEGRATION — Files absorbed into this constitution
 # ============================================================================
 legacy_integration:
