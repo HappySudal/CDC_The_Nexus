@@ -282,7 +282,7 @@ py 01_Proposal_Presentation/Workflow/workflow_engine.py advance not_achieved
 
 **검토 완료 시 의장님 표시**:
 ```
-서명일: ______________
+서다음 날: ______________
 의장님: __________________ (수달의장)
 판정: [ ] 승인  [ ] 조건부  [ ] 재작업
 ```
