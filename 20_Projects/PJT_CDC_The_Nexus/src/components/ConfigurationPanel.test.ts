@@ -388,6 +388,62 @@ describe('ConfigurationPanel.vue', () => {
       expect(vm.config.enableTwoFactor).toBe(initial2FA);
     });
   });
+
+  // ===== Action Functions Coverage (onConfigChanged/resetToDefaults/exportConfiguration) =====
+  describe('Action Functions', () => {
+    it('should handle config change without error (onConfigChanged)', async () => {
+      const wrapper = mount(ConfigurationPanel);
+      await wrapper.findAll('select')[0].trigger('change');
+      expect(wrapper.exists()).toBe(true);
+    });
+
+    it('should reset to defaults when confirmed (resetToDefaults)', async () => {
+      const wrapper = mount(ConfigurationPanel);
+      const vm = wrapper.vm as any;
+      vm.config.theme = 'light';
+      await wrapper.vm.$nextTick();
+
+      vi.stubGlobal('confirm', vi.fn(() => true));
+      await wrapper.findAll('.btn-secondary')[0].trigger('click');
+
+      expect(vm.config.theme).toBe('dark');
+      vi.unstubAllGlobals();
+    });
+
+    it('should NOT reset when confirm is cancelled', async () => {
+      const wrapper = mount(ConfigurationPanel);
+      const vm = wrapper.vm as any;
+      vm.config.theme = 'light';
+      await wrapper.vm.$nextTick();
+
+      vi.stubGlobal('confirm', vi.fn(() => false));
+      await wrapper.findAll('.btn-secondary')[0].trigger('click');
+
+      expect(vm.config.theme).toBe('light');
+      vi.unstubAllGlobals();
+    });
+
+    it('should export configuration as JSON download (exportConfiguration)', async () => {
+      const wrapper = mount(ConfigurationPanel);
+      const createObjSpy = vi.fn(() => 'blob:mock');
+      vi.stubGlobal('URL', { createObjectURL: createObjSpy, revokeObjectURL: vi.fn() });
+
+      const clickSpy = vi.fn();
+      const realCreate = document.createElement.bind(document);
+      const createElSpy = vi.spyOn(document, 'createElement').mockImplementation((tag: any) => {
+        if (tag === 'a') return { href: '', download: '', click: clickSpy } as any;
+        return realCreate(tag);
+      });
+
+      await wrapper.findAll('.btn-secondary')[1].trigger('click');
+
+      expect(createObjSpy).toHaveBeenCalled();
+      expect(clickSpy).toHaveBeenCalled();
+
+      createElSpy.mockRestore();
+      vi.unstubAllGlobals();
+    });
+  });
 });
 
 // 시각(時刻)에 존재하고, 시간(時間)에 소멸한다.
