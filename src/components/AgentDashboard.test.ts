@@ -486,10 +486,11 @@ describe('AgentDashboard.vue', () => {
   describe('UI Interactions', () => {
     it('should trigger applyFilters on input change', async () => {
       wrapper = mount(AgentDashboard);
-      const spy = vi.spyOn(wrapper.vm, 'applyFilters');
-      await wrapper.find('.filter-input').setValue('test');
+      // <script setup>에서는 @input이 원본 클로저를 호출하므로 vm 스파이 대신 효과(필터 반응성) 검증
+      await wrapper.find('.filter-input').setValue('Sudal');
       await wrapper.vm.$nextTick();
-      expect(spy).toHaveBeenCalled();
+      expect(wrapper.vm.filterQuery).toBe('Sudal');
+      expect(wrapper.vm.filteredAgents.length).toBeLessThan(wrapper.vm.agents.length);
     });
 
     it('should update filteredAgents when filter changes', async () => {

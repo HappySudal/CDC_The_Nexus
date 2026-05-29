@@ -81,146 +81,129 @@
   </div>
 </template>
 
-<script>
-export default {
-  name: 'ConstitutionViewer',
-  data() {
-    return {
-      constitutionContent: '',
-      sections: [
-        { title: 'Part 1. 철학', id: 'philosophy' },
-        { title: 'Part 2. 규칙 위계', id: 'hierarchy' },
-        { title: 'Part 3. 행동 강제 제어', id: 'control' },
-        { title: 'Part 4. 통합 시스템', id: 'architecture' },
-        { title: 'Part 5. 물리적 위계', id: 'physical' },
-        { title: 'Part 6. 에이전트 책임', id: 'agents' }
-      ],
-      currentSection: 0,
-      searchQuery: '',
-      isLoading: false,
-      lastUpdated: '로드 중...',
-      bookmarks: [],
-      filteredItems: []
-    };
-  },
+<script setup>
+import { ref, computed, onMounted } from 'vue';
 
-  computed: {
-    filteredContent() {
-      if (!this.searchQuery) {
-        return this.getSectionContent(this.currentSection);
-      }
+const constitutionContent = ref('');
+const sections = ref([
+  { title: 'Part 1. 철학', id: 'philosophy' },
+  { title: 'Part 2. 규칙 위계', id: 'hierarchy' },
+  { title: 'Part 3. 행동 강제 제어', id: 'control' },
+  { title: 'Part 4. 통합 시스템', id: 'architecture' },
+  { title: 'Part 5. 물리적 위계', id: 'physical' },
+  { title: 'Part 6. 에이전트 책임', id: 'agents' }
+]);
+const currentSection = ref(0);
+const searchQuery = ref('');
+const isLoading = ref(false);
+const lastUpdated = ref('로드 중...');
+const bookmarks = ref([]);
+const filteredItems = ref([]);
 
-      const query = this.searchQuery.toLowerCase();
-      const allContent = this.getAllContent();
-
-      return allContent.filter(item =>
-        item.title.toLowerCase().includes(query) ||
-        item.text.toLowerCase().includes(query)
-      );
-    }
-  },
-
-  methods: {
-    async loadConstitution() {
-      this.isLoading = true;
-      try {
-        // IPC로 헌법 파일 로드
-        const constitution = await window.electronAPI.getConstitution();
-        this.constitutionContent = constitution;
-        this.parseConstitution();
-        this.updateLastModified();
-      } catch (error) {
-        console.error('헌법 로드 실패:', error);
-        this.constitutionContent = '헌법을 로드할 수 없습니다.';
-      } finally {
-        this.isLoading = false;
-      }
-    },
-
-    parseConstitution() {
-      // 마크다운 형식의 헌법을 파싱하여 섹션별로 분할
-      const lines = this.constitutionContent.split('\n');
-      const parsed = [];
-      let currentItem = null;
-
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-
-        // 제목 감지 (### 형식)
-        if (line.startsWith('### ')) {
-          if (currentItem) parsed.push(currentItem);
-          currentItem = {
-            title: line.replace(/^### /, ''),
-            text: ''
-          };
-        } else if (currentItem) {
-          currentItem.text += line + '\n';
-        }
-      }
-
-      if (currentItem) parsed.push(currentItem);
-      this.filteredItems = parsed;
-    },
-
-    getSectionContent(sectionIndex) {
-      // 섹션별 콘텐츠 필터링
-      return this.filteredItems.slice(0, 10); // 임시: 모두 반환
-    },
-
-    getAllContent() {
-      return this.filteredItems;
-    },
-
-    filterContent() {
-      // 검색 필터링 (computed에서 자동 처리)
-      this.$forceUpdate();
-    },
-
-    highlightSearch(text) {
-      if (!this.searchQuery) return text;
-
-      const regex = new RegExp(`(${this.searchQuery})`, 'gi');
-      return text.replace(regex, '<mark>$1</mark>');
-    },
-
-    toggleBookmark(index) {
-      const idx = this.bookmarks.indexOf(index);
-      if (idx > -1) {
-        this.bookmarks.splice(idx, 1);
-      } else {
-        this.bookmarks.push(index);
-      }
-    },
-
-    async refreshConstitution() {
-      await this.loadConstitution();
-    },
-
-    updateLastModified() {
-      const now = new Date();
-      this.lastUpdated = `마지막 갱신: ${now.toLocaleString('ko-KR')}`;
-    },
-
-    // 실시간 동기화 감시
-    watchForChanges() {
-      if (window.electronAPI) {
-        window.electronAPI.onConstitutionUpdate?.(() => {
-          this.loadConstitution();
-        });
-      }
-    }
-  },
-
-  mounted() {
-    this.loadConstitution();
-    this.watchForChanges();
-
-    // 5초마다 갱신 (임시)
-    setInterval(() => {
-      this.loadConstitution();
-    }, 5000);
+const filteredContent = computed(() => {
+  if (!searchQuery.value) {
+    return getSectionContent(currentSection.value);
   }
-};
+  const query = searchQuery.value.toLowerCase();
+  return getAllContent().filter(item =>
+    item.title.toLowerCase().includes(query) ||
+    item.text.toLowerCase().includes(query)
+  );
+});
+
+async function loadConstitution() {
+  isLoading.value = true;
+  try {
+    // IPC로 헌법 파일 로드
+    const constitution = await window.electronAPI.getConstitution();
+    constitutionContent.value = constitution;
+    parseConstitution();
+    updateLastModified();
+  } catch (error) {
+    console.error('헌법 로드 실패:', error);
+    constitutionContent.value = '헌법을 로드할 수 없습니다.';
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+function parseConstitution() {
+  // 마크다운 형식의 헌법을 파싱하여 섹션별로 분할
+  const lines = constitutionContent.value.split('\n');
+  const parsed = [];
+  let currentItem = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // 제목 감지 (### 형식)
+    if (line.startsWith('### ')) {
+      if (currentItem) parsed.push(currentItem);
+      currentItem = { title: line.replace(/^### /, ''), text: '' };
+    } else if (currentItem) {
+      currentItem.text += line + '\n';
+    }
+  }
+
+  if (currentItem) parsed.push(currentItem);
+  filteredItems.value = parsed;
+}
+
+function getSectionContent(_sectionIndex) {
+  // 섹션별 콘텐츠 필터링 (임시: 상위 10개 반환)
+  return filteredItems.value.slice(0, 10);
+}
+
+function getAllContent() {
+  return filteredItems.value;
+}
+
+function filterContent() {
+  // 검색 필터링은 computed(filteredContent)에서 자동 처리됨 (no-op 핸들러)
+}
+
+function highlightSearch(text) {
+  if (!searchQuery.value) return text;
+  const regex = new RegExp(`(${searchQuery.value})`, 'gi');
+  return text.replace(regex, '<mark>$1</mark>');
+}
+
+function toggleBookmark(index) {
+  const idx = bookmarks.value.indexOf(index);
+  if (idx > -1) {
+    bookmarks.value.splice(idx, 1);
+  } else {
+    bookmarks.value.push(index);
+  }
+}
+
+async function refreshConstitution() {
+  await loadConstitution();
+}
+
+function updateLastModified() {
+  const now = new Date();
+  lastUpdated.value = `마지막 갱신: ${now.toLocaleString('ko-KR')}`;
+}
+
+// 실시간 동기화 감시
+function watchForChanges() {
+  if (window.electronAPI) {
+    window.electronAPI.onConstitutionUpdate?.(() => {
+      loadConstitution();
+    });
+  }
+}
+
+onMounted(() => {
+  loadConstitution();
+  watchForChanges();
+
+  // 5초마다 갱신 (임시)
+  setInterval(() => {
+    loadConstitution();
+  }, 5000);
+});
 </script>
 
 <style scoped>
@@ -444,3 +427,6 @@ export default {
   font-style: italic;
 }
 </style>
+
+<!-- "시각(時刻)에 존재하고, 시간(時間)에 소멸한다." -->
+<!-- "Exists in the Moment, Vanishes in Time." -->

@@ -170,192 +170,165 @@
   </div>
 </template>
 
-<script>
-export default {
-  name: 'SearchInterface',
-  data() {
-    return {
-      searchQuery: '',
-      selectedSystems: [],
-      availableSystems: [
-        'Nexus',
-        'Ollama',
-        'Morning',
-        'TwinBrain',
-        'CDC'
-      ],
-      dateRange: {
-        start: '',
-        end: ''
-      },
-      selectedStatus: '',
-      selectedTag: '',
-      sortBy: 'relevance',
-      currentPage: 1,
-      itemsPerPage: 10,
-      isSearching: false,
-      filteredResults: [],
-      selectedResult: null,
-      mockResults: [
-        {
-          id: 1,
-          title: 'CDC 마스터 헌법 정독',
-          content: '사령부 헌법 01_MASTER_CONSTITUTION.md 정독으로 7단계 프로토콜 확인. 모든 에이전트는 본 헌법에 명시된 규칙을 맹목적으로 준수해야 함.',
-          system: 'CDC',
-          status: 'completed',
-          timestamp: '2026-05-07T08:00:00Z',
-          agent: 'Lando',
-          tags: ['헌법', '프로토콜', '필수']
-        },
-        {
-          id: 2,
-          title: 'Nexus Phase 2 개발팀 구성',
-          content: '2026-05-16 킥오프 준비. OpenClaude 개발리더, Marco 통합리더, Amadeus 분석리더 등 7명의 코어팀 확정. 역할별 킥오프 준비 사항 정의.',
-          system: 'Nexus',
-          status: 'active',
-          timestamp: '2026-05-07T14:00:00Z',
-          agent: 'OpenClaude',
-          tags: ['개발', '팀', 'Phase2']
-        }
-      ]
-    };
+<script setup>
+import { ref, computed, onMounted } from 'vue';
+
+const searchQuery = ref('');
+const selectedSystems = ref([]);
+const availableSystems = ref(['Nexus', 'Ollama', 'Morning', 'TwinBrain', 'CDC']);
+const dateRange = ref({ start: '', end: '' });
+const selectedStatus = ref('');
+const selectedTag = ref('');
+const sortBy = ref('relevance');
+const currentPage = ref(1);
+const itemsPerPage = ref(10);
+const isSearching = ref(false);
+const filteredResults = ref([]);
+const selectedResult = ref(null);
+const mockResults = ref([
+  {
+    id: 1,
+    title: 'CDC 마스터 헌법 정독',
+    content: '사령부 헌법 01_MASTER_CONSTITUTION.md 정독으로 7단계 프로토콜 확인. 모든 에이전트는 본 헌법에 명시된 규칙을 맹목적으로 준수해야 함.',
+    system: 'CDC',
+    status: 'completed',
+    timestamp: '2026-05-07T08:00:00Z',
+    agent: 'Lando',
+    tags: ['헌법', '프로토콜', '필수']
   },
-
-  computed: {
-    paginatedResults() {
-      const start = (this.currentPage - 1) * this.itemsPerPage;
-      return this.filteredResults.slice(start, start + this.itemsPerPage);
-    },
-
-    totalPages() {
-      return Math.ceil(this.filteredResults.length / this.itemsPerPage);
-    }
-  },
-
-  methods: {
-    performSearch() {
-      if (this.searchQuery.length < 2) {
-        this.filteredResults = [];
-        return;
-      }
-
-      this.isSearching = true;
-      setTimeout(() => {
-        this.executeSearch();
-        this.isSearching = false;
-      }, 300);
-    },
-
-    executeSearch() {
-      const query = this.searchQuery.toLowerCase();
-      let results = this.mockResults.filter(item =>
-        item.title.toLowerCase().includes(query) ||
-        item.content.toLowerCase().includes(query)
-      );
-
-      this.applyFilters(results);
-    },
-
-    applyFilters(results = null) {
-      // 핵심 수정: results가 null이면 filteredResults 또는 mockResults 사용
-      if (results === null) {
-        results = this.filteredResults.length > 0 ? this.filteredResults : this.mockResults;
-      }
-
-      // 타입 가드: results가 배열이 아니면 초기화
-      if (!Array.isArray(results)) {
-        console.warn('[SearchInterface] applyFilters: results is not an array', results);
-        results = [];
-      }
-
-      if (this.selectedSystems.length > 0) {
-        results = results.filter(item =>
-          this.selectedSystems.includes(item.system)
-        );
-      }
-
-      if (this.selectedStatus) {
-        results = results.filter(item => item.status === this.selectedStatus);
-      }
-
-      if (this.selectedTag) {
-        results = results.filter(item =>
-          item.tags && item.tags.includes(this.selectedTag)
-        );
-      }
-
-      if (this.dateRange.start && this.dateRange.end) {
-        results = results.filter(item => {
-          const itemDate = new Date(item.timestamp);
-          return itemDate >= new Date(this.dateRange.start) &&
-                 itemDate <= new Date(this.dateRange.end);
-        });
-      }
-
-      this.filteredResults = results;
-      this.currentPage = 1;
-      this.applySort();
-    },
-
-    applySort() {
-      const results = [...this.filteredResults];
-
-      switch (this.sortBy) {
-        case 'date_desc':
-          results.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-          break;
-        case 'date_asc':
-          results.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-          break;
-        case 'title':
-          results.sort((a, b) => a.title.localeCompare(b.title));
-          break;
-      }
-
-      this.filteredResults = results;
-    },
-
-    selectResult(result) {
-      this.selectedResult = result;
-    },
-
-    clearSearch() {
-      this.searchQuery = '';
-      this.selectedSystems = [];
-      this.dateRange = { start: '', end: '' };
-      this.selectedStatus = '';
-      this.selectedTag = '';
-      this.sortBy = 'relevance';
-      this.filteredResults = [];
-      this.selectedResult = null;
-      this.currentPage = 1;
-    },
-
-    truncateText(text, length) {
-      return text.length > length ? text.substring(0, length) + '...' : text;
-    },
-
-    formatDate(timestamp) {
-      return new Date(timestamp).toLocaleString('ko-KR');
-    },
-
-    highlightKeywords(text) {
-      if (!this.searchQuery) return text;
-
-      const regex = new RegExp(`(${this.searchQuery})`, 'gi');
-      return text.replace(regex, '<mark>$1</mark>');
-    }
-  },
-
-  mounted() {
-    // IPC 리스너 설정 (추후 백엔드 연동)
-    if (window.electronAPI) {
-      window.electronAPI.onSearchResults?.((results) => {
-        this.filteredResults = results;
-      });
-    }
+  {
+    id: 2,
+    title: 'Nexus Phase 2 개발팀 구성',
+    content: '2026-05-16 킥오프 준비. OpenClaude 개발리더, Marco 통합리더, Amadeus 분석리더 등 7명의 코어팀 확정. 역할별 킥오프 준비 사항 정의.',
+    system: 'Nexus',
+    status: 'active',
+    timestamp: '2026-05-07T14:00:00Z',
+    agent: 'OpenClaude',
+    tags: ['개발', '팀', 'Phase2']
   }
-};
+]);
+
+const paginatedResults = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value;
+  return filteredResults.value.slice(start, start + itemsPerPage.value);
+});
+
+const totalPages = computed(() => Math.ceil(filteredResults.value.length / itemsPerPage.value));
+
+function performSearch() {
+  if (searchQuery.value.length < 2) {
+    filteredResults.value = [];
+    return;
+  }
+  isSearching.value = true;
+  setTimeout(() => {
+    executeSearch();
+    isSearching.value = false;
+  }, 300);
+}
+
+function executeSearch() {
+  const query = searchQuery.value.toLowerCase();
+  const results = mockResults.value.filter(item =>
+    item.title.toLowerCase().includes(query) ||
+    item.content.toLowerCase().includes(query)
+  );
+  applyFilters(results);
+}
+
+function applyFilters(results = null) {
+  // results가 null이면 filteredResults 또는 mockResults 사용
+  if (results === null) {
+    results = filteredResults.value.length > 0 ? filteredResults.value : mockResults.value;
+  }
+
+  // 타입 가드: results가 배열이 아니면 초기화
+  if (!Array.isArray(results)) {
+    console.warn('[SearchInterface] applyFilters: results is not an array', results);
+    results = [];
+  }
+
+  if (selectedSystems.value.length > 0) {
+    results = results.filter(item => selectedSystems.value.includes(item.system));
+  }
+
+  if (selectedStatus.value) {
+    results = results.filter(item => item.status === selectedStatus.value);
+  }
+
+  if (selectedTag.value) {
+    results = results.filter(item => item.tags && item.tags.includes(selectedTag.value));
+  }
+
+  if (dateRange.value.start && dateRange.value.end) {
+    results = results.filter(item => {
+      const itemDate = new Date(item.timestamp);
+      return itemDate >= new Date(dateRange.value.start) &&
+             itemDate <= new Date(dateRange.value.end);
+    });
+  }
+
+  filteredResults.value = results;
+  currentPage.value = 1;
+  applySort();
+}
+
+function applySort() {
+  const results = [...filteredResults.value];
+
+  switch (sortBy.value) {
+    case 'date_desc':
+      results.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      break;
+    case 'date_asc':
+      results.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+      break;
+    case 'title':
+      results.sort((a, b) => a.title.localeCompare(b.title));
+      break;
+  }
+
+  filteredResults.value = results;
+}
+
+function selectResult(result) {
+  selectedResult.value = result;
+}
+
+function clearSearch() {
+  searchQuery.value = '';
+  selectedSystems.value = [];
+  dateRange.value = { start: '', end: '' };
+  selectedStatus.value = '';
+  selectedTag.value = '';
+  sortBy.value = 'relevance';
+  filteredResults.value = [];
+  selectedResult.value = null;
+  currentPage.value = 1;
+}
+
+function truncateText(text, length) {
+  return text.length > length ? text.substring(0, length) + '...' : text;
+}
+
+function formatDate(timestamp) {
+  return new Date(timestamp).toLocaleString('ko-KR');
+}
+
+function highlightKeywords(text) {
+  if (!searchQuery.value) return text;
+  const regex = new RegExp(`(${searchQuery.value})`, 'gi');
+  return text.replace(regex, '<mark>$1</mark>');
+}
+
+onMounted(() => {
+  // IPC 리스너 설정 (추후 백엔드 연동)
+  if (window.electronAPI) {
+    window.electronAPI.onSearchResults?.((results) => {
+      filteredResults.value = results;
+    });
+  }
+});
 </script>
 
 <style scoped>

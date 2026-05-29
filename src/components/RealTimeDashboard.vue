@@ -193,197 +193,191 @@
   </div>
 </template>
 
-<script>
-export default {
-  name: 'RealTimeDashboard',
-  data() {
-    return {
-      currentTime: '',
-      autoRefresh: true,
-      refreshInterval: null,
-      systems: {
-        ollama: {
-          status: 'healthy',
-          cpu: 45,
-          memory: 62,
-          latency: 120,
-          model: 'llama2:7b',
-          throughput: 180
-        },
-        morning: {
-          status: 'healthy',
-          completion: 92,
-          queueTime: 45,
-          throughput: 15,
-          lastRun: new Date(Date.now() - 30 * 60000),
-          message: '정상 실행 중'
-        },
-        twinbrain: {
-          status: 'healthy',
-          storageUsage: 71,
-          syncStatus: '동기화 완료',
-          dataPoints: 45230,
-          vaultSize: 2.3,
-          rawSize: 1.8
-        },
-        nexus: {
-          status: 'healthy',
-          processState: '실행 중',
-          activeWindows: 3,
-          errors: 0,
-          version: 'v0.1.0',
-          lastUpdate: new Date(Date.now() - 2 * 60 * 60000)
-        }
-      },
-      activityLogs: [
-        {
-          timestamp: new Date(),
-          system: 'Nexus',
-          level: 'info',
-          message: 'ConstitutionViewer 컴포넌트 로드 완료'
-        },
-        {
-          timestamp: new Date(Date.now() - 60000),
-          system: 'TwinBrain',
-          level: 'info',
-          message: '데이터 동기화 완료 (45,230개 포인트)'
-        },
-        {
-          timestamp: new Date(Date.now() - 120000),
-          system: 'Ollama',
-          level: 'info',
-          message: '모델 추론 요청 처리 완료'
-        }
-      ],
-      alerts: [
-        {
-          severity: 'warning',
-          title: 'Ollama 메모리 사용량',
-          message: '메모리 사용량이 60% 초과했습니다. 모니터링 필요.'
-        }
-      ]
-    };
+<script setup>
+import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue';
+
+const currentTime = ref('');
+const autoRefresh = ref(true);
+let refreshInterval = null;
+let timeInterval = null;
+
+const systems = reactive({
+  ollama: {
+    status: 'healthy',
+    cpu: 45,
+    memory: 62,
+    latency: 120,
+    model: 'llama2:7b',
+    throughput: 180
   },
-
-  computed: {
-    overallStatus() {
-      const statuses = Object.values(this.systems).map(s => s.status);
-      if (statuses.includes('critical')) return 'critical';
-      if (statuses.includes('warning')) return 'warning';
-      return 'healthy';
-    }
+  morning: {
+    status: 'healthy',
+    completion: 92,
+    queueTime: 45,
+    throughput: 15,
+    lastRun: new Date(Date.now() - 30 * 60000),
+    message: '정상 실행 중'
   },
-
-  methods: {
-    updateTime() {
-      const now = new Date();
-      // 안정적인 시간 형식: YYYY-MM-DD HH:mm:ss
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const date = String(now.getDate()).padStart(2, '0');
-      const hours = String(now.getHours()).padStart(2, '0');
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      const seconds = String(now.getSeconds()).padStart(2, '0');
-      this.currentTime = `${year}-${month}-${date} ${hours}:${minutes}:${seconds}`;
-    },
-
-    toggleAutoRefresh() {
-      this.autoRefresh = !this.autoRefresh;
-      if (this.autoRefresh) {
-        this.startAutoRefresh();
-      } else {
-        clearInterval(this.refreshInterval);
-      }
-    },
-
-    startAutoRefresh() {
-      this.refreshInterval = setInterval(() => {
-        this.updateMetrics();
-      }, 5000);
-    },
-
-    updateMetrics() {
-      this.systems.ollama.cpu = Math.max(20, Math.min(80, this.systems.ollama.cpu + (Math.random() - 0.5) * 10));
-      this.systems.ollama.memory = Math.max(50, Math.min(75, this.systems.ollama.memory + (Math.random() - 0.5) * 5));
-      this.updateTime();
-    },
-
-    clearLogs() {
-      this.activityLogs = [];
-    },
-
-    dismissAlert(idx) {
-      this.alerts.splice(idx, 1);
-    },
-
-    getStatusText(status) {
-      const texts = {
-        healthy: '🟢 정상',
-        warning: '🟡 주의',
-        critical: '🔴 위험'
-      };
-      return texts[status] || '상태 불명';
-    },
-
-    getSeverityIcon(severity) {
-      const icons = {
-        info: 'ℹ️',
-        warning: '⚠️',
-        critical: '🚨'
-      };
-      return icons[severity] || '❓';
-    },
-
-    formatTime(date) {
-      if (!date) return '-';
-      const now = new Date();
-      const diff = now - date;
-      const minutes = Math.floor(diff / 60000);
-
-      if (minutes < 1) return '방금 전';
-      if (minutes < 60) return `${minutes}분 전`;
-      const hours = Math.floor(minutes / 60);
-      if (hours < 24) return `${hours}시간 전`;
-      const days = Math.floor(hours / 24);
-      return `${days}일 전`;
-    }
+  twinbrain: {
+    status: 'healthy',
+    storageUsage: 71,
+    syncStatus: '동기화 완료',
+    dataPoints: 45230,
+    vaultSize: 2.3,
+    rawSize: 1.8
   },
-
-  mounted() {
-    this.updateTime();
-    setInterval(() => this.updateTime(), 1000);
-    this.startAutoRefresh();
-
-    // IPC 리스너
-    if (window.electronAPI) {
-      window.electronAPI.onSystemMetrics?.((metrics) => {
-        if (metrics.ollama) {
-          Object.assign(this.systems.ollama, metrics.ollama);
-        }
-      });
-
-      window.electronAPI.onActivityLog?.((log) => {
-        this.activityLogs.unshift(log);
-        if (this.activityLogs.length > 50) {
-          this.activityLogs.pop();
-        }
-      });
-
-      window.electronAPI.onAlert?.((alert) => {
-        this.alerts.unshift(alert);
-        if (this.alerts.length > 10) {
-          this.alerts.pop();
-        }
-      });
-    }
-  },
-
-  beforeUnmount() {
-    if (this.refreshInterval) {
-      clearInterval(this.refreshInterval);
-    }
+  nexus: {
+    status: 'healthy',
+    processState: '실행 중',
+    activeWindows: 3,
+    errors: 0,
+    version: 'v0.1.0',
+    lastUpdate: new Date(Date.now() - 2 * 60 * 60000)
   }
-};
+});
+
+const activityLogs = ref([
+  {
+    timestamp: new Date(),
+    system: 'Nexus',
+    level: 'info',
+    message: 'ConstitutionViewer 컴포넌트 로드 완료'
+  },
+  {
+    timestamp: new Date(Date.now() - 60000),
+    system: 'TwinBrain',
+    level: 'info',
+    message: '데이터 동기화 완료 (45,230개 포인트)'
+  },
+  {
+    timestamp: new Date(Date.now() - 120000),
+    system: 'Ollama',
+    level: 'info',
+    message: '모델 추론 요청 처리 완료'
+  }
+]);
+
+const alerts = ref([
+  {
+    severity: 'warning',
+    title: 'Ollama 메모리 사용량',
+    message: '메모리 사용량이 60% 초과했습니다. 모니터링 필요.'
+  }
+]);
+
+const overallStatus = computed(() => {
+  const statuses = Object.values(systems).map(s => s.status);
+  if (statuses.includes('critical')) return 'critical';
+  if (statuses.includes('warning')) return 'warning';
+  return 'healthy';
+});
+
+function updateTime() {
+  const now = new Date();
+  // 안정적인 시간 형식: YYYY-MM-DD HH:mm:ss
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const date = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+  currentTime.value = `${year}-${month}-${date} ${hours}:${minutes}:${seconds}`;
+}
+
+function toggleAutoRefresh() {
+  autoRefresh.value = !autoRefresh.value;
+  if (autoRefresh.value) {
+    startAutoRefresh();
+  } else {
+    clearInterval(refreshInterval);
+  }
+}
+
+function startAutoRefresh() {
+  refreshInterval = setInterval(() => {
+    updateMetrics();
+  }, 5000);
+}
+
+function updateMetrics() {
+  systems.ollama.cpu = Math.max(20, Math.min(80, systems.ollama.cpu + (Math.random() - 0.5) * 10));
+  systems.ollama.memory = Math.max(50, Math.min(75, systems.ollama.memory + (Math.random() - 0.5) * 5));
+  updateTime();
+}
+
+function clearLogs() {
+  activityLogs.value = [];
+}
+
+function dismissAlert(idx) {
+  alerts.value.splice(idx, 1);
+}
+
+function getStatusText(status) {
+  const texts = {
+    healthy: '🟢 정상',
+    warning: '🟡 주의',
+    critical: '🔴 위험'
+  };
+  return texts[status] || '상태 불명';
+}
+
+function getSeverityIcon(severity) {
+  const icons = {
+    info: 'ℹ️',
+    warning: '⚠️',
+    critical: '🚨'
+  };
+  return icons[severity] || '❓';
+}
+
+function formatTime(date) {
+  if (!date) return '-';
+  const now = new Date();
+  const diff = now - date;
+  const minutes = Math.floor(diff / 60000);
+
+  if (minutes < 1) return '방금 전';
+  if (minutes < 60) return `${minutes}분 전`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}시간 전`;
+  const days = Math.floor(hours / 24);
+  return `${days}일 전`;
+}
+
+onMounted(() => {
+  updateTime();
+  timeInterval = setInterval(() => updateTime(), 1000);
+  startAutoRefresh();
+
+  // IPC 리스너
+  if (window.electronAPI) {
+    window.electronAPI.onSystemMetrics?.((metrics) => {
+      if (metrics.ollama) {
+        Object.assign(systems.ollama, metrics.ollama);
+      }
+    });
+
+    window.electronAPI.onActivityLog?.((log) => {
+      activityLogs.value.unshift(log);
+      if (activityLogs.value.length > 50) {
+        activityLogs.value.pop();
+      }
+    });
+
+    window.electronAPI.onAlert?.((alert) => {
+      alerts.value.unshift(alert);
+      if (alerts.value.length > 10) {
+        alerts.value.pop();
+      }
+    });
+  }
+});
+
+onBeforeUnmount(() => {
+  if (refreshInterval) clearInterval(refreshInterval);
+  if (timeInterval) clearInterval(timeInterval);
+});
 </script>
 
 <style scoped>
