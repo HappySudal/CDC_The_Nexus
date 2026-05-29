@@ -8,8 +8,10 @@
 import { ipcMain } from 'electron';
 import path from 'path';
 import fs from 'fs';
+import { execSync } from 'child_process';
 import { IpcChannels, ResponseFormats, IpcEventBatcher, IpcHandler } from './ipc-channels.js';
 import { ollamaManager } from './ollama-manager.js';
+import { ApprovalGate } from './approval-gate.js';
 
 /**
  * Initialize all IPC handlers for Phase 2 features
@@ -22,9 +24,29 @@ export function initializeIpcHandlers(agents, graph, discord) {
   const eventBatcher = new IpcEventBatcher(20, 1000);
 
   // =====================================================
-  // 1. CONSTITUTION MANAGEMENT
+  // 1. CONSTITUTION MANAGEMENT (Tier 0 — 토큰 기반 승인 게이트)
   // =====================================================
-  handler.handle(IpcChannels.CONSTITUTION.GET_CONSTITUTION, async (event) => {
+  // 앱 자체 렌더러는 사전 승인(화이트리스트). 외부 요청자(예: discord-bot)는
+  // 의장 승인(constitution:approve)을 거쳐야 토큰을 발급받는다.
+  const constitutionGate = new ApprovalGate({ whitelist: ['nexus-renderer'] });
+
+  // 1-a. 접근 요청 → 화이트리스트는 즉시 토큰, 그 외는 승인 대기 requestId
+  handler.handle('constitution:request', async (event, { requestor } = {}) => {
+    return constitutionGate.requestAccess(requestor || 'nexus-renderer');
+  });
+
+  // 1-b. (의장/UI) 대기 요청 승인 → 토큰 발급
+  handler.handle('constitution:approve', async (event, { requestId } = {}) => {
+    const token = constitutionGate.approve(requestId);
+    return { approved: true, token };
+  });
+
+  // 1-c. 실제 헌법 반환 — 유효 토큰 필수
+  handler.handle(IpcChannels.CONSTITUTION.GET_CONSTITUTION, async (event, { token } = {}) => {
+    if (!constitutionGate.verify(token)) {
+      throw new Error('Unauthorized: valid approval token required (요청→승인 후 재시도)');
+    }
+
     const constitutionPath = path.join(
       process.env.WORKSPACE_ROOT || 'C:\\99_Develop\\SynologyDrive',
       '01_Control_Tower',
@@ -69,7 +91,6 @@ export function initializeIpcHandlers(agents, graph, discord) {
   // 2. SEARCH & FILTERING
   // =====================================================
   handler.handle(IpcChannels.SEARCH.SEARCH_DOCUMENTS, async (event, { query, filters }) => {
-    const { execSync } = require('child_process');
     const scriptPath = path.join(
       process.env.WORKSPACE_ROOT || 'C:\\99_Develop\\SynologyDrive',
       '01_Control_Tower',
@@ -467,6 +488,105 @@ export function initializeIpcHandlers(agents, graph, discord) {
     return { success: connected, status: connected ? 'connected' : 'failed' };
   });
 
+  // Discord Command Routing (Phase C Control Interface)
+  handler.handle('discord:execute-npm-script', async (event, { projectName, script, userId, guildId }) => {
+    const { execSync } = require('child_process');
+    const { PROJECT_REGISTRY } = require('../20_Projects/PJT_CDC_The_Nexus/electron/discord-bridge');
+
+    if (!PROJECT_REGISTRY[projectName]) {
+      return {
+        success: false,
+        error: `Project '${projectName}' not found`,
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    const project = PROJECT_REGISTRY[projectName];
+    if (!project.scripts || !project.scripts.includes(script)) {
+      return {
+        success: false,
+        error: `Script '${script}' not available for ${projectName}`,
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    try {
+      const result = execSync(`npm run ${script}`, {
+        cwd: project.path,
+        encoding: 'utf8',
+        timeout: 30000
+      });
+
+      return {
+        success: true,
+        projectName,
+        script,
+        output: result.substring(0, 500),
+        timestamp: new Date().toISOString(),
+        userId,
+        guildId
+      };
+    } catch (error) {
+      return {
+        success: false,
+        projectName,
+        script,
+        error: error.message.substring(0, 200),
+        timestamp: new Date().toISOString(),
+        userId,
+        guildId
+      };
+    }
+  });
+
+  handler.handle('discord:execute-agent-command', async (event, { agentId, command, userId, guildId }) => {
+    try {
+      // Route to agent:execute-command with Discord metadata
+      const result = await new Promise((resolve, reject) => {
+        const handler = ipcMain.handle('agent:execute-command', async (e, args) => {
+          try {
+            const cmd = `agent:${agentId}:${command}`;
+            const agentResult = await executeAgentCommand(agentId, command);
+            resolve({
+              success: true,
+              agentId,
+              command,
+              result: agentResult,
+              timestamp: new Date().toISOString(),
+              userId,
+              guildId
+            });
+          } catch (err) {
+            reject(err);
+          }
+        });
+      });
+
+      return result;
+    } catch (error) {
+      return {
+        success: false,
+        agentId,
+        command,
+        error: error.message,
+        timestamp: new Date().toISOString(),
+        userId,
+        guildId
+      };
+    }
+  });
+
+  handler.handle('discord:get-project-registry', async (event) => {
+    const { PROJECT_REGISTRY } = require('../20_Projects/PJT_CDC_The_Nexus/electron/discord-bridge');
+    return Object.entries(PROJECT_REGISTRY).map(([name, info]) => ({
+      name,
+      description: info.description,
+      scripts: info.scripts,
+      path: info.path,
+      port: info.port
+    }));
+  });
+
   // =====================================================
   // 13. OLLAMA MODEL MANAGER
   // =====================================================
@@ -580,8 +700,14 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 // Expose safe IPC API to renderer
 contextBridge.exposeInMainWorld('electronAPI', {
-  // Constitution
-  getConstitution: () => ipcRenderer.invoke('constitution:get'),
+  // Constitution (token-gated)
+  getConstitution: async () => {
+    const res = await ipcRenderer.invoke('constitution:request', { requestor: 'nexus-renderer' });
+    if (!res.approved || !res.token) throw new Error('Constitution access not approved');
+    return ipcRenderer.invoke('constitution:get', { token: res.token });
+  },
+  requestConstitutionAccess: (requestor) => ipcRenderer.invoke('constitution:request', { requestor }),
+  approveConstitutionAccess: (requestId) => ipcRenderer.invoke('constitution:approve', { requestId }),
   onConstitutionUpdate: (callback) => ipcRenderer.on('constitution:changed', callback),
 
   // Search

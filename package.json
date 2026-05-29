@@ -13,15 +13,17 @@
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
     "test": "vitest",
-    "test:ui": "vitest --ui"
+    "test:ui": "vitest --ui",
+    "generate:audit": "node src/scripts/generate-component-audit.mjs"
   },
   "dependencies": {
-    "vue": "^3.3.0",
     "cytoscape": "^3.28.1",
-    "cytoscape-cose-bilkent": "^4.1.0"
+    "cytoscape-cose-bilkent": "^4.1.0",
+    "vue": "^3.3.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.0",
+    "@vitest/coverage-v8": "^4.1.6",
     "@vitest/ui": "^4.1.6",
     "@vue/test-utils": "^2.4.10",
     "concurrently": "^8.2.0",

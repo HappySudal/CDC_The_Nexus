@@ -13,9 +13,23 @@ import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('electronAPI', {
   // =====================================================
-  // 1. CONSTITUTION MANAGEMENT
+  // 1. CONSTITUTION MANAGEMENT (Tier 0 — 토큰 기반 승인 게이트)
   // =====================================================
-  getConstitution: () => ipcRenderer.invoke('constitution:get'),
+  // 앱 렌더러는 화이트리스트라 요청 시 즉시 토큰을 받으므로,
+  // getConstitution()은 요청→토큰→조회를 내부 오케스트레이션하여 기존 호출부와 호환된다.
+  getConstitution: async () => {
+    const res = await ipcRenderer.invoke('constitution:request', { requestor: 'nexus-renderer' });
+    if (!res.approved || !res.token) {
+      throw new Error('Constitution access not approved');
+    }
+    return ipcRenderer.invoke('constitution:get', { token: res.token });
+  },
+  requestConstitutionAccess: (requestor) =>
+    ipcRenderer.invoke('constitution:request', { requestor }),
+  approveConstitutionAccess: (requestId) =>
+    ipcRenderer.invoke('constitution:approve', { requestId }),
+  getConstitutionWithToken: (token) =>
+    ipcRenderer.invoke('constitution:get', { token }),
   onConstitutionUpdate: (callback) => {
     const listener = (_event, data) => callback(data);
     ipcRenderer.on('constitution:changed', listener);
@@ -90,6 +104,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // =====================================================
   generateReport: (reportType) =>
     ipcRenderer.invoke('report:generate', { reportType }),
+  getLatestReport: () => ipcRenderer.invoke('report:get-latest'),
   onReportReady: (callback) => {
     const listener = (_event, data) => callback(data);
     ipcRenderer.on('report:ready', listener);
@@ -102,6 +117,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   startMonitoring: () => ipcRenderer.invoke('admin:start-monitoring'),
   triggerBackup: () => ipcRenderer.invoke('admin:trigger-backup'),
   triggerSync: () => ipcRenderer.invoke('admin:trigger-sync'),
+
+  // =====================================================
+  // 9.5. DISCORD INTEGRATION
+  // =====================================================
+  discord: {
+    testWebhook: (webhookUrl) =>
+      ipcRenderer.invoke('discord:test-webhook', { webhookUrl }),
+    saveWebhook: (webhookUrl) =>
+      ipcRenderer.invoke('discord:save-webhook', { webhookUrl }),
+  },
 
   // =====================================================
   // 10. OLLAMA MODEL MANAGER

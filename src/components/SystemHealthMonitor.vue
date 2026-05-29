@@ -326,7 +326,7 @@ const toggleDetailMode = () => {
 
 const runDiagnostics = () => {
   hardwareItems.value.forEach(item => {
-    item.value = Math.max(20, item.value + (Math.random() - 0.5) * 20);
+    item.value = Math.max(20, Math.min(100, item.value + (Math.random() - 0.5) * 20));
   });
   networkItems.value.forEach(item => {
     item.value = Math.max(0, Math.min(100, item.value + (Math.random() - 0.5) * 15));
@@ -335,7 +335,7 @@ const runDiagnostics = () => {
     item.value = Math.max(20, Math.min(95, item.value + (Math.random() - 0.5) * 10));
   });
   softwareItems.value.forEach(item => {
-    item.value = Math.max(80, item.value + (Math.random() - 0.5) * 5);
+    item.value = Math.max(80, Math.min(100, item.value + (Math.random() - 0.5) * 5));
   });
 
   const newDiagnostic: Diagnostic = {
@@ -373,7 +373,19 @@ defineExpose({
   storageItems,
   softwareItems,
   diagnostics,
-  runDiagnostics
+  runDiagnostics,
+  // 테스트 정합을 위한 추가 노출 (UI 비변경, 순수 추가)
+  detailMode,
+  collapsedCategories,
+  toggleCategory,
+  toggleDetailMode,
+  getStatusClass,
+  getItemStatusClass,
+  getHealthStatus,
+  healthySystems,
+  warningCount,
+  errorCount,
+  totalSystems
 });
 </script>
 
