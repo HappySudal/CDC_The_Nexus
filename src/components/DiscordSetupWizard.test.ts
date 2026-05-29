@@ -440,7 +440,7 @@ describe('DiscordSetupWizard.vue', () => {
 
   // ===== Completion Flow =====
   describe('Completion Flow', () => {
-    it('should complete wizard on final step confirmation', async () => {
+    it('should complete wizard on last step confirmation', async () => {
       wrapper.vm.currentStep = 3;
       wrapper.vm.webhookUrl = 'https://discord.com/api/webhooks/123456789/abc-def-ghi';
       await wrapper.vm.$nextTick();
