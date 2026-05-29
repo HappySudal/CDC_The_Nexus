@@ -236,7 +236,7 @@
         <button type="submit" class="submit-btn" :disabled="isSubmitting">
           {{ isSubmitting ? '생성 중...' : '✅ 작업 생성' }}
         </button>
-        <button type="button" @click="$emit('cancel')" class="cancel-btn">
+        <button type="button" @click="emit('cancel')" class="cancel-btn">
           취소
         </button>
       </div>
@@ -250,148 +250,136 @@
   </div>
 </template>
 
-<script>
-export default {
-  name: 'TaskCreationForm',
-  emits: ['task-created', 'cancel'],
-  data() {
-    return {
-      form: {
-        title: '',
-        description: '',
-        priority: '',
-        category: '',
-        assignee: '',
-        dependency: '',
-        team: '',
-        startDate: '',
-        dueDate: '',
-        estimateHours: 1,
-        milestone: '',
-        tags: [],
-        systemTags: [],
-        isBlocking: false,
-        requiresApproval: false,
-        isRecurring: false,
-        recurrencePattern: 'daily'
-      },
-      tagInput: '',
-      errors: {},
-      isSubmitting: false,
-      successMessage: '',
-      availableSystemTags: [
-        'Nexus',
-        'Ollama',
-        'Morning Protocol',
-        'TwinBrain',
-        'CDC'
-      ]
-    };
-  },
+<script setup>
+import { ref, onMounted } from 'vue';
 
-  methods: {
-    addTag() {
-      if (this.tagInput.trim()) {
-        this.form.tags.push(this.tagInput.trim());
-        this.tagInput = '';
-      }
-    },
+const emit = defineEmits(['task-created', 'cancel']);
 
-    removeTag(idx) {
-      this.form.tags.splice(idx, 1);
-    },
+const form = ref({
+  title: '',
+  description: '',
+  priority: '',
+  category: '',
+  assignee: '',
+  dependency: '',
+  team: '',
+  startDate: '',
+  dueDate: '',
+  estimateHours: 1,
+  milestone: '',
+  tags: [],
+  systemTags: [],
+  isBlocking: false,
+  requiresApproval: false,
+  isRecurring: false,
+  recurrencePattern: 'daily'
+});
+const tagInput = ref('');
+const errors = ref({});
+const isSubmitting = ref(false);
+const successMessage = ref('');
+const availableSystemTags = ref(['Nexus', 'Ollama', 'Morning Protocol', 'TwinBrain', 'CDC']);
 
-    validateForm() {
-      this.errors = {};
-
-      if (!this.form.title.trim()) {
-        this.errors.title = '작업명은 필수입니다.';
-      }
-
-      if (!this.form.assignee) {
-        this.errors.assignee = '담당 에이전트는 필수입니다.';
-      }
-
-      if (!this.form.startDate || !this.form.dueDate) {
-        this.errors.dueDate = '시작일과 완료일은 필수입니다.';
-      } else if (new Date(this.form.startDate) > new Date(this.form.dueDate)) {
-        this.errors.dueDate = '완료일은 시작일 이후여야 합니다.';
-      }
-
-      return Object.keys(this.errors).length === 0;
-    },
-
-    async submitTask() {
-      if (!this.validateForm()) {
-        return;
-      }
-
-      this.isSubmitting = true;
-
-      try {
-        const taskData = {
-          id: `TASK_${Date.now()}`,
-          createdAt: new Date(),
-          status: 'pending',
-          ...this.form
-        };
-
-        // IPC를 통해 작업 생성
-        if (window.electronAPI) {
-          await window.electronAPI.createTask?.(taskData);
-        }
-
-        this.successMessage = `"${this.form.title}" 작업이 생성되었습니다.`;
-        this.$emit('task-created', taskData);
-
-        // 1초 후 폼 초기화
-        setTimeout(() => {
-          this.resetForm();
-        }, 1500);
-      } catch (error) {
-        console.error('작업 생성 실패:', error);
-        this.errors.submit = '작업 생성에 실패했습니다.';
-      } finally {
-        this.isSubmitting = false;
-      }
-    },
-
-    resetForm() {
-      this.form = {
-        title: '',
-        description: '',
-        priority: '',
-        category: '',
-        assignee: '',
-        dependency: '',
-        team: '',
-        startDate: '',
-        dueDate: '',
-        estimateHours: 1,
-        milestone: '',
-        tags: [],
-        systemTags: [],
-        isBlocking: false,
-        requiresApproval: false,
-        isRecurring: false,
-        recurrencePattern: 'daily'
-      };
-      this.errors = {};
-      this.tagInput = '';
-      this.successMessage = '';
-    }
-  },
-
-  mounted() {
-    // 기본 시작일을 오늘로 설정
-    const today = new Date().toISOString().split('T')[0];
-    this.form.startDate = today;
-
-    // 기본 완료일을 내일로 설정
-    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    this.form.dueDate = tomorrow;
+function addTag() {
+  if (tagInput.value.trim()) {
+    form.value.tags.push(tagInput.value.trim());
+    tagInput.value = '';
   }
-};
+}
+
+function removeTag(idx) {
+  form.value.tags.splice(idx, 1);
+}
+
+function validateForm() {
+  errors.value = {};
+
+  if (!form.value.title.trim()) {
+    errors.value.title = '작업명은 필수입니다.';
+  }
+
+  if (!form.value.assignee) {
+    errors.value.assignee = '담당 에이전트는 필수입니다.';
+  }
+
+  if (!form.value.startDate || !form.value.dueDate) {
+    errors.value.dueDate = '시작일과 완료일은 필수입니다.';
+  } else if (new Date(form.value.startDate) > new Date(form.value.dueDate)) {
+    errors.value.dueDate = '완료일은 시작일 이후여야 합니다.';
+  }
+
+  return Object.keys(errors.value).length === 0;
+}
+
+async function submitTask() {
+  if (!validateForm()) {
+    return;
+  }
+
+  isSubmitting.value = true;
+
+  try {
+    const taskData = {
+      id: `TASK_${Date.now()}`,
+      createdAt: new Date(),
+      status: 'pending',
+      ...form.value
+    };
+
+    // IPC를 통해 작업 생성
+    if (window.electronAPI) {
+      await window.electronAPI.createTask?.(taskData);
+    }
+
+    successMessage.value = `"${form.value.title}" 작업이 생성되었습니다.`;
+    emit('task-created', taskData);
+
+    // 1초 후 폼 초기화
+    setTimeout(() => {
+      resetForm();
+    }, 1500);
+  } catch (error) {
+    console.error('작업 생성 실패:', error);
+    errors.value.submit = '작업 생성에 실패했습니다.';
+  } finally {
+    isSubmitting.value = false;
+  }
+}
+
+function resetForm() {
+  form.value = {
+    title: '',
+    description: '',
+    priority: '',
+    category: '',
+    assignee: '',
+    dependency: '',
+    team: '',
+    startDate: '',
+    dueDate: '',
+    estimateHours: 1,
+    milestone: '',
+    tags: [],
+    systemTags: [],
+    isBlocking: false,
+    requiresApproval: false,
+    isRecurring: false,
+    recurrencePattern: 'daily'
+  };
+  errors.value = {};
+  tagInput.value = '';
+  successMessage.value = '';
+}
+
+onMounted(() => {
+  // 기본 시작일을 오늘로 설정
+  const today = new Date().toISOString().split('T')[0];
+  form.value.startDate = today;
+
+  // 기본 완료일을 다음 날로 설정
+  const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  form.value.dueDate = tomorrow;
+});
 </script>
 
 <style scoped>

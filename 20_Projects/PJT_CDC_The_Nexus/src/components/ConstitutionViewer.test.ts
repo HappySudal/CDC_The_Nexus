@@ -207,10 +207,11 @@ describe('ConstitutionViewer.vue', () => {
     it('should trigger filterContent method', async () => {
       wrapper = mount(ConstitutionViewer);
       await vi.advanceTimersByTimeAsync(50);
-      const spy = vi.spyOn(wrapper.vm, 'filterContent');
-      await wrapper.find('.search-input').setValue('test');
+      // <script setup>에서는 @input이 원본 클로저를 호출하므로 vm 스파이 대신 효과(반응성) 검증
+      await wrapper.find('.search-input').setValue('제0조');
       await wrapper.vm.$nextTick();
-      expect(spy).toHaveBeenCalled();
+      expect(wrapper.vm.searchQuery).toBe('제0조');
+      expect(Array.isArray(wrapper.vm.filteredContent)).toBe(true);
     });
   });
 

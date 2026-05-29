@@ -270,17 +270,15 @@
   </div>
 </template>
 
-<script>
-export default {
-  name: 'AgentDashboard',
-  data() {
-    return {
-      viewMode: 'list',
-      filterQuery: '',
-      filterStatus: '',
-      isRefreshing: false,
-      selectedAgent: null,
-      agents: [
+<script setup>
+import { ref, computed, onMounted } from 'vue';
+
+const viewMode = ref('list');
+const filterQuery = ref('');
+const filterStatus = ref('');
+const isRefreshing = ref(false);
+const selectedAgent = ref(null);
+const agents = ref([
         {
           id: 1,
           name: 'Sudal',
@@ -363,104 +361,88 @@ export default {
           errors: []
         }
       ]
-    };
-  },
+    );
 
-  computed: {
-    totalAgents() {
-      return this.agents.length;
-    },
+const totalAgents = computed(() => agents.value.length);
+const activeCount = computed(() => agents.value.filter(a => a.status === 'active').length);
+const idleCount = computed(() => agents.value.filter(a => a.status === 'idle').length);
+const errorCount = computed(() => agents.value.filter(a => a.status === 'error').length);
 
-    activeCount() {
-      return this.agents.filter(a => a.status === 'active').length;
-    },
+const avgResponseTime = computed(() => {
+  const total = agents.value.reduce((sum, a) => sum + a.responseTime, 0);
+  return Math.round(total / agents.value.length);
+});
 
-    idleCount() {
-      return this.agents.filter(a => a.status === 'idle').length;
-    },
+const filteredAgents = computed(() => {
+  return agents.value.filter(agent => {
+    const matchesQuery = agent.name.toLowerCase().includes(filterQuery.value.toLowerCase()) ||
+                        agent.role.toLowerCase().includes(filterQuery.value.toLowerCase());
+    const matchesStatus = !filterStatus.value || agent.status === filterStatus.value;
+    return matchesQuery && matchesStatus;
+  });
+});
 
-    errorCount() {
-      return this.agents.filter(a => a.status === 'error').length;
-    },
+function refreshData() {
+  isRefreshing.value = true;
+  setTimeout(() => {
+    isRefreshing.value = false;
+  }, 1000);
+}
 
-    avgResponseTime() {
-      const total = this.agents.reduce((sum, a) => sum + a.responseTime, 0);
-      return Math.round(total / this.agents.length);
-    },
+function applyFilters() {
+  // 필터 자동 적용 (computed(filteredAgents)에서 처리, no-op 핸들러)
+}
 
-    filteredAgents() {
-      return this.agents.filter(agent => {
-        const matchesQuery = agent.name.toLowerCase().includes(this.filterQuery.toLowerCase()) ||
-                            agent.role.toLowerCase().includes(this.filterQuery.toLowerCase());
-        const matchesStatus = !this.filterStatus || agent.status === this.filterStatus;
-        return matchesQuery && matchesStatus;
-      });
-    }
-  },
+function viewAgentDetails(agent) {
+  selectedAgent.value = agent;
+}
 
-  methods: {
-    refreshData() {
-      this.isRefreshing = true;
-      setTimeout(() => {
-        this.isRefreshing = false;
-      }, 1000);
-    },
+function executeCommand(agentId) {
+  console.log(`Executing command for agent ${agentId}`);
+  alert('에이전트에 명령을 실행합니다.');
+}
 
-    applyFilters() {
-      // 필터 자동 적용 (computed에서 처리)
-    },
+function getStatusLabel(status) {
+  const labels = {
+    active: '활성 중',
+    idle: '대기 중',
+    error: '오류'
+  };
+  return labels[status] || status;
+}
 
-    viewAgentDetails(agent) {
-      this.selectedAgent = agent;
-    },
+function formatTime(date) {
+  if (!date) return '-';
+  return new Date(date).toLocaleString('ko-KR');
+}
 
-    executeCommand(agentId) {
-      console.log(`Executing command for agent ${agentId}`);
-      alert('에이전트에 명령을 실행합니다.');
-    },
-
-    getStatusLabel(status) {
-      const labels = {
-        active: '활성 중',
-        idle: '대기 중',
-        error: '오류'
-      };
-      return labels[status] || status;
-    },
-
-    formatTime(date) {
-      if (!date) return '-';
-      return new Date(date).toLocaleString('ko-KR');
-    },
-    async loadAgents() {
-      try {
-        if (window.electronAPI && window.electronAPI.getAgents) {
-          const result = await window.electronAPI.getAgents();
-          if (result && result.data) {
-            this.agents = result.data;
-          } else if (Array.isArray(result)) {
-            this.agents = result;
-          }
-        }
-      } catch (error) {
-        console.error('[AgentDashboard] Failed to load agents:', error);
+async function loadAgents() {
+  try {
+    if (window.electronAPI && window.electronAPI.getAgents) {
+      const result = await window.electronAPI.getAgents();
+      if (result && result.data) {
+        agents.value = result.data;
+      } else if (Array.isArray(result)) {
+        agents.value = result;
       }
     }
-  },
-
-  mounted() {
-    this.loadAgents();
-
-    if (window.electronAPI) {
-      window.electronAPI.onAgentStatus?.((agentData) => {
-        const agent = this.agents.find(a => a.id === agentData.id);
-        if (agent) {
-          Object.assign(agent, agentData);
-        }
-      });
-    }
+  } catch (error) {
+    console.error('[AgentDashboard] Failed to load agents:', error);
   }
-};
+}
+
+onMounted(() => {
+  loadAgents();
+
+  if (window.electronAPI) {
+    window.electronAPI.onAgentStatus?.((agentData) => {
+      const agent = agents.value.find(a => a.id === agentData.id);
+      if (agent) {
+        Object.assign(agent, agentData);
+      }
+    });
+  }
+});
 </script>
 
 <style scoped>
