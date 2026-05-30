@@ -565,6 +565,118 @@ describe('AgentDashboard.vue', () => {
       expect(() => wrapper.vm.$nextTick()).not.toThrow();
     });
   });
+
+  // ========== Template Event Handler Coverage ==========
+  describe('Template Event Handler Coverage', () => {
+    it('should trigger viewMode select v-model', async () => {
+      wrapper = mount(AgentDashboard);
+      await vi.advanceTimersByTimeAsync(50);
+      const sel = wrapper.find('.view-selector');
+      await sel.setValue('grid');
+      expect(wrapper.vm.viewMode).toBe('grid');
+    });
+
+    it('should trigger filterStatus select v-model + @change', async () => {
+      wrapper = mount(AgentDashboard);
+      await vi.advanceTimersByTimeAsync(50);
+      const sel = wrapper.find('.filter-select');
+      await sel.setValue('active');
+      await sel.trigger('change');
+      expect(wrapper.vm.filterStatus).toBe('active');
+    });
+
+    it('should trigger list-view detail button @click (viewAgentDetails)', async () => {
+      wrapper = mount(AgentDashboard);
+      await vi.advanceTimersByTimeAsync(50);
+      const detailBtn = wrapper.find('.detail-btn');
+      expect(detailBtn.exists()).toBe(true);
+      await detailBtn.trigger('click');
+      expect(wrapper.vm.selectedAgent).not.toBeNull();
+    });
+
+    it('should trigger list-view command button @click (executeCommand)', async () => {
+      wrapper = mount(AgentDashboard);
+      await vi.advanceTimersByTimeAsync(50);
+      const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const cmdBtn = wrapper.find('.command-btn');
+      expect(cmdBtn.exists()).toBe(true);
+      await cmdBtn.trigger('click');
+      spy.mockRestore();
+    });
+
+    it('should trigger grid-card @click (viewAgentDetails)', async () => {
+      wrapper = mount(AgentDashboard);
+      await vi.advanceTimersByTimeAsync(50);
+      wrapper.vm.viewMode = 'grid';
+      await wrapper.vm.$nextTick();
+      const card = wrapper.find('.agent-card-grid');
+      expect(card.exists()).toBe(true);
+      await card.trigger('click');
+      expect(wrapper.vm.selectedAgent).not.toBeNull();
+    });
+
+    it('should close modal when overlay clicked', async () => {
+      wrapper = mount(AgentDashboard);
+      await vi.advanceTimersByTimeAsync(50);
+      wrapper.vm.selectedAgent = wrapper.vm.agents[0];
+      await wrapper.vm.$nextTick();
+      await wrapper.find('.modal-overlay').trigger('click');
+      expect(wrapper.vm.selectedAgent).toBeNull();
+    });
+
+    it('should NOT close modal when content clicked (@click.stop)', async () => {
+      wrapper = mount(AgentDashboard);
+      await vi.advanceTimersByTimeAsync(50);
+      wrapper.vm.selectedAgent = wrapper.vm.agents[0];
+      await wrapper.vm.$nextTick();
+      await wrapper.find('.modal-content').trigger('click');
+      expect(wrapper.vm.selectedAgent).not.toBeNull();
+    });
+
+    it('should close modal when close-btn clicked', async () => {
+      wrapper = mount(AgentDashboard);
+      await vi.advanceTimersByTimeAsync(50);
+      wrapper.vm.selectedAgent = wrapper.vm.agents[0];
+      await wrapper.vm.$nextTick();
+      await wrapper.find('.close-btn').trigger('click');
+      expect(wrapper.vm.selectedAgent).toBeNull();
+    });
+
+    it('should trigger modal primary button @click (executeCommand)', async () => {
+      wrapper = mount(AgentDashboard);
+      await vi.advanceTimersByTimeAsync(50);
+      wrapper.vm.selectedAgent = wrapper.vm.agents[0];
+      await wrapper.vm.$nextTick();
+      const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      await wrapper.find('.modal-footer .primary').trigger('click');
+      spy.mockRestore();
+    });
+
+    it('should trigger modal secondary button (close)', async () => {
+      wrapper = mount(AgentDashboard);
+      await vi.advanceTimersByTimeAsync(50);
+      wrapper.vm.selectedAgent = wrapper.vm.agents[0];
+      await wrapper.vm.$nextTick();
+      await wrapper.find('.modal-footer .secondary').trigger('click');
+      expect(wrapper.vm.selectedAgent).toBeNull();
+    });
+
+    it('should invoke onAgentStatus callback updating matching agent', async () => {
+      let captured: any = null;
+      window.electronAPI = {
+        getAgents: vi.fn().mockResolvedValue([
+          { id: 1, name: 'Sudal', role: 'CEO', status: 'active', tasksCompleted: 1, tasksTotal: 1, responseTime: 10, uptime: 100, lastActivity: new Date(), recentTasks: [], errors: [] }
+        ]),
+        onAgentStatus: vi.fn((cb: any) => { captured = cb; })
+      } as any;
+      wrapper = mount(AgentDashboard);
+      await vi.advanceTimersByTimeAsync(50);
+      await Promise.resolve();
+      expect(typeof captured).toBe('function');
+      captured({ id: 1, status: 'error' });
+      expect(wrapper.vm.agents.find((a: any) => a.id === 1).status).toBe('error');
+    });
+  });
 });
 
 /*

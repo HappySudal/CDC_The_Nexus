@@ -660,6 +660,98 @@ describe('TaskCreationForm.vue', () => {
       expect(vm.form.assignee).toBe('lando');
     });
   });
+
+  // ===== Template Event Handler Coverage =====
+  describe('Template v-model Handler Coverage', () => {
+    it('should trigger description textarea v-model', async () => {
+      wrapper = mount(TaskCreationForm);
+      const ta = wrapper.find('#taskDescription');
+      await ta.setValue('상세 설명');
+      expect((wrapper.vm as any).form.description).toBe('상세 설명');
+    });
+
+    it('should trigger dependency text v-model', async () => {
+      wrapper = mount(TaskCreationForm);
+      const inp = wrapper.find('#taskDependency');
+      await inp.setValue('TASK_001');
+      expect((wrapper.vm as any).form.dependency).toBe('TASK_001');
+    });
+
+    it('should trigger team select v-model', async () => {
+      wrapper = mount(TaskCreationForm);
+      const sel = wrapper.find('#taskTeam');
+      await sel.setValue('track-a');
+      expect((wrapper.vm as any).form.team).toBe('track-a');
+    });
+
+    it('should trigger startDate v-model', async () => {
+      wrapper = mount(TaskCreationForm);
+      const inp = wrapper.find('#taskStartDate');
+      await inp.setValue('2026-05-30');
+      expect((wrapper.vm as any).form.startDate).toBe('2026-05-30');
+    });
+
+    it('should trigger dueDate v-model', async () => {
+      wrapper = mount(TaskCreationForm);
+      const inp = wrapper.find('#taskDueDate');
+      await inp.setValue('2026-06-15');
+      expect((wrapper.vm as any).form.dueDate).toBe('2026-06-15');
+    });
+
+    it('should trigger estimateHours number v-model', async () => {
+      wrapper = mount(TaskCreationForm);
+      const inp = wrapper.find('#taskEstimate');
+      await inp.setValue(8);
+      expect((wrapper.vm as any).form.estimateHours).toBe(8);
+    });
+
+    it('should trigger milestone select v-model', async () => {
+      wrapper = mount(TaskCreationForm);
+      const sel = wrapper.find('#taskMilestone');
+      await sel.setValue('phase-2a');
+      expect((wrapper.vm as any).form.milestone).toBe('phase-2a');
+    });
+
+    it('should trigger recurrencePattern select v-model when isRecurring', async () => {
+      wrapper = mount(TaskCreationForm);
+      const vm = wrapper.vm as any;
+      vm.form.isRecurring = true;
+      await wrapper.vm.$nextTick();
+      const sel = wrapper.find('#taskRecurrence');
+      expect(sel.exists()).toBe(true);
+      await sel.setValue('weekly');
+      expect(vm.form.recurrencePattern).toBe('weekly');
+    });
+
+    it('should clear successMessage when close-success @click fires', async () => {
+      wrapper = mount(TaskCreationForm);
+      const vm = wrapper.vm as any;
+      vm.successMessage = '테스트 메시지';
+      await wrapper.vm.$nextTick();
+      const closeBtn = wrapper.find('.close-success');
+      expect(closeBtn.exists()).toBe(true);
+      await closeBtn.trigger('click');
+      expect(vm.successMessage).toBe('');
+    });
+
+    it('should fire submitTask setTimeout resetForm callback', async () => {
+      wrapper = mount(TaskCreationForm);
+      const vm = wrapper.vm as any;
+      vm.form.title = 'Coverage Task';
+      vm.form.assignee = 'sudal';
+      vm.form.startDate = '2026-05-30';
+      vm.form.dueDate = '2026-05-31';
+      await wrapper.vm.$nextTick();
+      const submitPromise = vm.submitTask();
+      await flushPromises();
+      await submitPromise;
+      expect(vm.successMessage).toContain('Coverage Task');
+      // Advance setTimeout(1500) → resetForm()
+      vi.advanceTimersByTime(1600);
+      await flushPromises();
+      expect(vm.form.title).toBe('');
+    });
+  });
 });
 
 /*
