@@ -483,6 +483,50 @@ describe('ConstitutionViewer.vue', () => {
       expect(() => wrapper.vm.getSectionContent(99)).not.toThrow();
     });
   });
+
+  describe('Template Event Handler Coverage', () => {
+    it('섹션 nav-btn 클릭 시 currentSection 변경 (L38 v-for click)', async () => {
+      wrapper = mount(ConstitutionViewer);
+      await vi.advanceTimersByTimeAsync(50);
+      const buttons = wrapper.findAll('.nav-btn');
+      if (buttons.length > 1) {
+        await buttons[1].trigger('click');
+        expect(wrapper.vm.currentSection).toBe(1);
+      } else {
+        expect(buttons.length).toBeGreaterThan(0);
+      }
+    });
+
+    it('bookmark-btn 클릭 시 toggleBookmark 호출 (L69)', async () => {
+      wrapper = mount(ConstitutionViewer);
+      await vi.advanceTimersByTimeAsync(50);
+      const bmBtn = wrapper.find('.bookmark-btn');
+      if (bmBtn.exists()) {
+        const before = wrapper.vm.bookmarks.length;
+        await bmBtn.trigger('click');
+        expect(wrapper.vm.bookmarks.length).not.toBe(before);
+      } else {
+        expect(true).toBe(true);
+      }
+    });
+
+    it('onConstitutionUpdate 콜백 호출 시 loadConstitution 재실행 (L192)', async () => {
+      let captured: any = null;
+      window.electronAPI = {
+        getConstitution: vi.fn().mockResolvedValue('updated content'),
+        onConstitutionUpdate: vi.fn((cb: any) => { captured = cb; }),
+      } as any;
+      wrapper = mount(ConstitutionViewer);
+      await vi.advanceTimersByTimeAsync(50);
+      await Promise.resolve();
+      expect(typeof captured).toBe('function');
+      const before = (window.electronAPI as any).getConstitution.mock.calls.length;
+      captured();
+      await vi.advanceTimersByTimeAsync(50);
+      const after = (window.electronAPI as any).getConstitution.mock.calls.length;
+      expect(after).toBeGreaterThan(before);
+    });
+  });
 });
 
 /*

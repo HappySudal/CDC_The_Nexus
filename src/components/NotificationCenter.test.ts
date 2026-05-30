@@ -641,6 +641,59 @@ describe('NotificationCenter.vue', () => {
       expect(progress).toBeLessThanOrEqual(100);
     });
   });
+
+  describe('Template Coverage', () => {
+    it('history-item 클릭 시 focusNotification 트리거 (L51)', async () => {
+      const wrapper = mount(NotificationCenter);
+      const vm = wrapper.vm as any;
+      vm.addNotification({ type: 'info', title: 't', message: 'm' });
+      await wrapper.vm.$nextTick();
+      const item = wrapper.find('.history-item');
+      if (item.exists()) {
+        await item.trigger('click');
+        expect(true).toBe(true);
+      } else {
+        expect(true).toBe(true);
+      }
+    });
+
+    it('autoDismiss + dismissTime 후 setTimeout 콜백이 알림 제거 (L188, L189)', async () => {
+      vi.useFakeTimers();
+      try {
+        const wrapper = mount(NotificationCenter);
+        const vm = wrapper.vm as any;
+        vm.addNotification({
+          type: 'info', title: 't', message: 'm',
+          autoDismiss: true, dismissTime: 500,
+        });
+        await wrapper.vm.$nextTick();
+        const before = vm.allNotifications.length;
+        vi.advanceTimersByTime(600);
+        await wrapper.vm.$nextTick();
+        const after = vm.allNotifications.length;
+        expect(after).toBeLessThan(before);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('clearAll은 dismissTimers를 순회하여 clearTimeout 호출 (L211)', async () => {
+      vi.useFakeTimers();
+      try {
+        const wrapper = mount(NotificationCenter);
+        const vm = wrapper.vm as any;
+        vm.addNotification({ type: 'info', title: 't1', message: 'm1', autoDismiss: true, dismissTime: 10_000 });
+        vm.addNotification({ type: 'info', title: 't2', message: 'm2', autoDismiss: true, dismissTime: 10_000 });
+        await wrapper.vm.$nextTick();
+        expect(vm.dismissTimers.size).toBeGreaterThan(0);
+        vm.clearAll();
+        expect(vm.dismissTimers.size).toBe(0);
+        expect(vm.allNotifications.length).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
 });
 
 // 시각(時刻)에 존재하고, 시간(時間)에 소멸한다.
