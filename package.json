@@ -7,11 +7,16 @@
   "homepage": "./",
   "scripts": {
     "dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
-    "build": "vite build && electron-builder",
+    "build:vite": "vite build",
+    "build:electron": "electron-builder",
+    "build": "npm run build:vite && npm run build:electron",
     "preview": "vite preview",
     "start": "electron .",
     "pack": "electron-builder --dir",
-    "dist": "electron-builder",
+    "dist": "npm run build:vite && electron-builder",
+    "dist:win": "npm run build:vite && electron-builder --win",
+    "dist:mac": "npm run build:vite && electron-builder --mac",
+    "dist:linux": "npm run build:vite && electron-builder --linux",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "e2e": "playwright test",
@@ -43,12 +48,46 @@
   "build": {
     "appId": "com.cdc.nexus",
     "productName": "The Nexus",
+    "copyright": "© CDC Sovereign Framework",
+    "compression": "maximum",
     "files": [
       "dist/**/*",
-      "electron/**/*"
+      "electron/**/*",
+      "!**/*.map",
+      "!**/*.test.*",
+      "!**/__tests__/**"
     ],
     "directories": {
+      "output": "dist-electron",
       "buildResources": "assets"
-    }
+    },
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ],
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false
+    },
+    "mac": {
+      "target": [
+        { "target": "dmg", "arch": ["x64", "arm64"] }
+      ],
+      "category": "public.app-category.productivity",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "linux": {
+      "target": [
+        { "target": "AppImage", "arch": ["x64"] }
+      ],
+      "category": "Utility",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "publish": null
   }
 }

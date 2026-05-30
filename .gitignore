@@ -47,6 +47,9 @@ test-results/
 e2e-report/
 playwright-report/
 
+# Electron Builder output
+dist-electron/
+
 # Release archives & build artifacts
 06_Releases/
 *.zip
