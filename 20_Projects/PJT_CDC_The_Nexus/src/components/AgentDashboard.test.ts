@@ -661,6 +661,30 @@ describe('AgentDashboard.vue', () => {
       expect(wrapper.vm.selectedAgent).toBeNull();
     });
 
+    it('errors 배열이 있는 사도 모달은 error-item v-for를 렌더링한다 (L250 :key)', async () => {
+      window.electronAPI = {
+        getAgents: vi.fn().mockResolvedValue([
+          {
+            id: 99, name: 'ErrAgent', role: 'test', status: 'error',
+            tasksCompleted: 1, tasksTotal: 2, responseTime: 10, uptime: 50,
+            lastActivity: new Date(),
+            recentTasks: [],
+            errors: [
+              { timestamp: new Date(), message: 'timeout' },
+              { timestamp: new Date(), message: 'connection refused' },
+            ],
+          },
+        ]),
+        onAgentStatus: vi.fn(),
+      } as any;
+      wrapper = mount(AgentDashboard);
+      await vi.advanceTimersByTimeAsync(50);
+      wrapper.vm.selectedAgent = wrapper.vm.agents[0];
+      await wrapper.vm.$nextTick();
+      const errorItems = wrapper.findAll('.error-item');
+      expect(errorItems.length).toBe(2);
+    });
+
     it('should invoke onAgentStatus callback updating matching agent', async () => {
       let captured: any = null;
       window.electronAPI = {
