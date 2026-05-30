@@ -50,6 +50,11 @@ playwright-report/
 # Electron Builder output
 dist-electron/
 
+# Code signing secrets (D2.4)
+.env
+*.pfx
+*.p12
+
 # Release archives & build artifacts
 06_Releases/
 *.zip

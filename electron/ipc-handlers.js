@@ -12,6 +12,8 @@ import { execSync } from 'child_process';
 import { IpcChannels, ResponseFormats, IpcEventBatcher, IpcHandler } from './ipc-channels.js';
 import { ollamaManager } from './ollama-manager.js';
 import { ApprovalGate } from './approval-gate.js';
+import { APOSTLE_REGISTRY } from './apostle-registry.js';
+import { OpenClaudeClient } from './openclaude-client.js';
 
 /**
  * Initialize all IPC handlers for Phase 2 features
@@ -66,7 +68,8 @@ export function initializeIpcHandlers(agents, graph, discord) {
     };
   });
 
-  // Watch for constitution changes
+  // Watch for constitution changes (Phase D3.2 — 헌법 실시간 알림)
+  // 'change' 외 'rename'(atomic write)도 처리, 다중 이벤트 debounce(150ms).
   handler.on(IpcChannels.CONSTITUTION.GET_CONSTITUTION, (event) => {
     const constitutionPath = path.join(
       process.env.WORKSPACE_ROOT || 'C:\\99_Develop\\SynologyDrive',
@@ -74,17 +77,24 @@ export function initializeIpcHandlers(agents, graph, discord) {
       '01_MASTER_CONSTITUTION.md'
     );
 
-    const watcher = fs.watch(constitutionPath, (eventType, filename) => {
-      if (eventType === 'change') {
-        event.reply(IpcChannels.CONSTITUTION.CONSTITUTION_CHANGED, {
-          path: constitutionPath,
-          changedAt: new Date().toISOString(),
-        });
-      }
+    let debounceTimer = null;
+    const fireChanged = () => {
+      event.reply(IpcChannels.CONSTITUTION.CONSTITUTION_CHANGED, {
+        path: constitutionPath,
+        changedAt: new Date().toISOString(),
+      });
+    };
+
+    const watcher = fs.watch(constitutionPath, (eventType /*, filename */) => {
+      if (eventType !== 'change' && eventType !== 'rename') return;
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(fireChanged, 150);
     });
 
-    // Cleanup on disconnection
-    event.once('close', () => watcher.close());
+    event.once('close', () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      watcher.close();
+    });
   });
 
   // =====================================================
@@ -686,6 +696,109 @@ export function initializeIpcHandlers(agents, graph, discord) {
       console.error('[Ollama] Load model failed:', error);
       throw error;
     }
+  });
+
+  // =====================================================
+  // 11. APOSTLE ROUTING (Phase D3 — 의장-Nexus Live IPC)
+  // =====================================================
+  // 13사도(+의장) 라우팅. ApprovalGate를 통한 토큰 인가 후 명령 위임.
+  // 레지스트리는 별도 모듈(./apostle-registry.js)로 분리하여 단위 테스트 가능.
+  const apostleGate = new ApprovalGate({ whitelist: ['nexus-renderer'] });
+  // D3.3: OpenClaude 라우팅 백엔드 (apiKey 미설정 시 invoke가 NOT_CONFIGURED 던짐)
+  const openclaude = new OpenClaudeClient();
+
+  handler.handle(IpcChannels.APOSTLE.GET_ROSTER, async () => {
+    return { roster: APOSTLE_REGISTRY, total: APOSTLE_REGISTRY.length };
+  });
+
+  handler.handle(IpcChannels.APOSTLE.GET_STATUS, async (event, { id } = {}) => {
+    const entry = APOSTLE_REGISTRY.find(a => a.id === id);
+    if (!entry) throw new Error(`Unknown apostle: ${id}`);
+    return {
+      ...entry,
+      online: true,
+      lastSeen: new Date().toISOString(),
+      pendingCommands: 0,
+    };
+  });
+
+  handler.handle(IpcChannels.APOSTLE.REQUEST_TOKEN, async (event, { requestor } = {}) => {
+    return apostleGate.requestAccess(requestor || 'nexus-renderer');
+  });
+
+  handler.handle(IpcChannels.APOSTLE.APPROVE_TOKEN, async (event, { requestId } = {}) => {
+    const token = apostleGate.approve(requestId);
+    return { approved: true, token };
+  });
+
+  handler.handle(IpcChannels.APOSTLE.REVOKE_TOKEN, async (event, { token } = {}) => {
+    const revoked = apostleGate.revoke ? apostleGate.revoke(token) : false;
+    return { revoked: !!revoked };
+  });
+
+  handler.handle(IpcChannels.APOSTLE.EXECUTE, async (event, { token, id, command, payload } = {}) => {
+    if (!apostleGate.verify(token)) {
+      throw new Error('Unauthorized: valid apostle token required (REQUEST_TOKEN → APPROVE_TOKEN)');
+    }
+    const apostle = APOSTLE_REGISTRY.find(a => a.id === id);
+    if (!apostle) throw new Error(`Unknown apostle: ${id}`);
+
+    const executedAt = new Date().toISOString();
+
+    // D3.3: tier 2 외부 AI 라우팅. openclaude는 OpenClaudeClient로 실호출.
+    if (apostle.id === 'openclaude' && openclaude.isConfigured()) {
+      try {
+        const { response, cached, latencyMs } = await openclaude.invoke(String(command || ''));
+        return {
+          apostle: apostle.id,
+          command,
+          payload: payload || null,
+          executedAt,
+          status: 'ok',
+          response,
+          meta: { cached, latencyMs, backend: 'openclaude' },
+        };
+      } catch (err) {
+        return {
+          apostle: apostle.id,
+          command,
+          executedAt,
+          status: 'error',
+          error: { code: err.code || 'INVOKE_FAILED', message: err.message },
+        };
+      }
+    }
+
+    // 그 외(또는 미설정 시) 스켈레톤 응답. 향후 ollama/gemini/grok/perplexity 라우팅 추가.
+    return {
+      apostle: apostle.id,
+      command,
+      payload: payload || null,
+      executedAt,
+      status: 'queued',
+      response: `[${apostle.name}] ${command} (queued — 라우팅 백엔드 미설정)`,
+    };
+  });
+
+  handler.handle(IpcChannels.APOSTLE.GET_METRICS, async (event, { id } = {}) => {
+    if (id) {
+      const entry = APOSTLE_REGISTRY.find(a => a.id === id);
+      if (!entry) throw new Error(`Unknown apostle: ${id}`);
+      return {
+        id,
+        invocations: 0,
+        avgLatencyMs: 0,
+        errorRate: 0,
+        lastInvocation: null,
+      };
+    }
+    // 전체 메트릭 (스켈레톤)
+    return APOSTLE_REGISTRY.map(a => ({
+      id: a.id,
+      invocations: 0,
+      avgLatencyMs: 0,
+      errorRate: 0,
+    }));
   });
 
   return { handler, eventBatcher, setupRealtimeUpdates };

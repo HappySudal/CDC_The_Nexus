@@ -224,6 +224,41 @@ export const IpcChannels = {
     TRIGGER_SYNC: 'admin:trigger-sync',
     // Renderer → Main: 성능 최적화 실행
     OPTIMIZE_PERFORMANCE: 'admin:optimize-performance',
+  },
+
+  // =====================================================
+  // 11. APOSTLE ROUTING (Phase D3 — 의장-Nexus Live IPC)
+  // =====================================================
+  // 13사도(+의장) 라우팅. 토큰 게이트(ApprovalGate)를 통한 인가 후 명령 위임.
+  // 사도 ID: sudal, lando, anti, seogi, taesoon, marco, leo, guardian,
+  //         amadeus, openclaude, gemini, grok, perplexity, ollama (목록은 운영 시 확장)
+  APOSTLE: {
+    // Renderer → Main: 사도 명단 조회
+    GET_ROSTER: 'apostle:get-roster',
+    // Main → Renderer: 사도 명단 응답
+    ROSTER: 'apostle:roster',
+    // Renderer → Main: 개별 사도 상태 조회
+    GET_STATUS: 'apostle:get-status',
+    // Main → Renderer: 사도 상태 응답 (실시간 푸시 가능)
+    STATUS_UPDATED: 'apostle:status-updated',
+    // Renderer → Main: 사도 명령 위임 (토큰 필수)
+    EXECUTE: 'apostle:execute',
+    // Main → Renderer: 명령 결과
+    RESULT: 'apostle:result',
+    // Main → Renderer: 명령 진행 스트리밍 (chunk 단위)
+    STREAM_CHUNK: 'apostle:stream-chunk',
+    // Renderer → Main: 사도 메트릭 조회
+    GET_METRICS: 'apostle:get-metrics',
+    // Main → Renderer: 메트릭 응답
+    METRICS: 'apostle:metrics',
+    // Renderer → Main: 사도 위임 접근 요청 (토큰 발급 게이트)
+    REQUEST_TOKEN: 'apostle:request-token',
+    // Renderer → Main: 의장 명시 승인 (대기 중 requestId)
+    APPROVE_TOKEN: 'apostle:approve-token',
+    // Renderer → Main: 토큰 폐기
+    REVOKE_TOKEN: 'apostle:revoke-token',
+    // Main → Renderer: 사도 측 에러
+    ERROR: 'apostle:error',
   }
 };
 
