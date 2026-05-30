@@ -694,6 +694,72 @@ describe('AgentCommandPanel.vue', () => {
       expect(wrapper.vm.lastResponse?.content).not.toBe(firstResponse);
     });
   });
+
+  // ===== Template Event Handler Coverage (v-model 래퍼 함수 + v-for click 핸들러) =====
+  describe('10. 템플릿 이벤트 핸들러 (v-model/click 래퍼 커버)', () => {
+    it('도우미 select v-model 업데이트 핸들러를 트리거해야 한다', async () => {
+      wrapper = mount(AgentCommandPanel);
+      await vi.advanceTimersByTimeAsync(50);
+      const select = wrapper.find('select#agent-select');
+      await select.setValue('sudal');
+      expect(wrapper.vm.selectedAgent).toBe('sudal');
+    });
+
+    it('명령어 textarea v-model 업데이트 핸들러를 트리거해야 한다', async () => {
+      wrapper = mount(AgentCommandPanel);
+      await vi.advanceTimersByTimeAsync(50);
+      const ta = wrapper.find('textarea#command-input');
+      await ta.setValue('hello');
+      expect(wrapper.vm.commandText).toBe('hello');
+    });
+
+    it('priority 체크박스 v-model 업데이트 핸들러를 트리거해야 한다', async () => {
+      wrapper = mount(AgentCommandPanel);
+      await vi.advanceTimersByTimeAsync(50);
+      const cb = wrapper.findAll('input[type="checkbox"]')[0];
+      await cb.setValue(true);
+      expect(wrapper.vm.options.priority).toBe(true);
+    });
+
+    it('saveToHistory 체크박스 v-model 업데이트 핸들러를 트리거해야 한다', async () => {
+      wrapper = mount(AgentCommandPanel);
+      await vi.advanceTimersByTimeAsync(50);
+      const cb = wrapper.findAll('input[type="checkbox"]')[1];
+      await cb.setValue(false);
+      expect(wrapper.vm.options.saveToHistory).toBe(false);
+    });
+
+    it('notifyOnComplete 체크박스 v-model 업데이트 핸들러를 트리거해야 한다', async () => {
+      wrapper = mount(AgentCommandPanel);
+      await vi.advanceTimersByTimeAsync(50);
+      const cb = wrapper.findAll('input[type="checkbox"]')[2];
+      await cb.setValue(true);
+      expect(wrapper.vm.options.notifyOnComplete).toBe(true);
+    });
+
+    it('히스토리 항목 클릭 핸들러를 트리거해야 한다 (v-for click)', async () => {
+      wrapper = mount(AgentCommandPanel);
+      await vi.advanceTimersByTimeAsync(50);
+      // 히스토리 1건 추가
+      wrapper.vm.selectedAgent = 'sudal';
+      wrapper.vm.commandText = '명령 A';
+      wrapper.vm.executeCommand();
+      vi.advanceTimersByTime(1500);
+      await flushPromises();
+      await wrapper.vm.$nextTick();
+
+      // 입력 초기화 후 히스토리 항목 클릭으로 재로드
+      wrapper.vm.commandText = '';
+      wrapper.vm.selectedAgent = '';
+      await wrapper.vm.$nextTick();
+
+      const item = wrapper.find('.history-item');
+      expect(item.exists()).toBe(true);
+      await item.trigger('click');
+      expect(wrapper.vm.selectedAgent).toBe('sudal');
+      expect(wrapper.vm.commandText).toBe('명령 A');
+    });
+  });
 });
 
 // 시각(時刻)에 존재하고, 시간(時間)에 소멸한다.

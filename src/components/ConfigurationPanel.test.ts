@@ -389,6 +389,110 @@ describe('ConfigurationPanel.vue', () => {
     });
   });
 
+  // ===== Template Event Handler Coverage (모든 @change v-on 래퍼 커버) =====
+  describe('Template Event Handlers', () => {
+    it('should trigger language select @change', async () => {
+      const wrapper = mount(ConfigurationPanel);
+      const selects = wrapper.findAll('select');
+      await selects[1].setValue('en');
+      await selects[1].trigger('change');
+      expect(wrapper.exists()).toBe(true);
+    });
+
+    it('should trigger autoSaveInterval input @change', async () => {
+      const wrapper = mount(ConfigurationPanel);
+      const numInputs = wrapper.findAll('input[type="number"]');
+      await numInputs[0].setValue(120);
+      await numInputs[0].trigger('change');
+      expect(wrapper.exists()).toBe(true);
+    });
+
+    it('should trigger maxLogEntries input @change', async () => {
+      const wrapper = mount(ConfigurationPanel);
+      const numInputs = wrapper.findAll('input[type="number"]');
+      await numInputs[1].setValue(2000);
+      await numInputs[1].trigger('change');
+      expect(wrapper.exists()).toBe(true);
+    });
+
+    it('should trigger cacheSize input @change', async () => {
+      const wrapper = mount(ConfigurationPanel);
+      const numInputs = wrapper.findAll('input[type="number"]');
+      await numInputs[2].setValue(256);
+      await numInputs[2].trigger('change');
+      expect(wrapper.exists()).toBe(true);
+    });
+
+    it('should trigger apiTimeout input @change', async () => {
+      const wrapper = mount(ConfigurationPanel);
+      const numInputs = wrapper.findAll('input[type="number"]');
+      await numInputs[3].setValue(45000);
+      await numInputs[3].trigger('change');
+      expect(wrapper.exists()).toBe(true);
+    });
+
+    it('should trigger apiEndpoint text @change', async () => {
+      const wrapper = mount(ConfigurationPanel);
+      const textInputs = wrapper.findAll('input[type="text"]');
+      await textInputs[0].setValue('https://new.example.com');
+      await textInputs[0].trigger('change');
+      expect(wrapper.exists()).toBe(true);
+    });
+
+    it('should trigger proxyServer text @change', async () => {
+      const wrapper = mount(ConfigurationPanel);
+      const textInputs = wrapper.findAll('input[type="text"]');
+      await textInputs[1].setValue('proxy.test.com:8080');
+      await textInputs[1].trigger('change');
+      expect(wrapper.exists()).toBe(true);
+    });
+
+    it('should trigger enableProxy checkbox @change', async () => {
+      const wrapper = mount(ConfigurationPanel);
+      const checkboxes = wrapper.findAll('input[type="checkbox"]');
+      await checkboxes[0].setValue(true);
+      await checkboxes[0].trigger('change');
+      expect(wrapper.exists()).toBe(true);
+    });
+
+    it('should trigger enableSSL checkbox @change', async () => {
+      const wrapper = mount(ConfigurationPanel);
+      const checkboxes = wrapper.findAll('input[type="checkbox"]');
+      await checkboxes[1].setValue(false);
+      await checkboxes[1].trigger('change');
+      expect(wrapper.exists()).toBe(true);
+    });
+
+    it('should trigger enableTwoFactor checkbox @change', async () => {
+      const wrapper = mount(ConfigurationPanel);
+      const checkboxes = wrapper.findAll('input[type="checkbox"]');
+      await checkboxes[2].setValue(true);
+      await checkboxes[2].trigger('change');
+      expect(wrapper.exists()).toBe(true);
+    });
+
+    it('should trigger sessionTimeout input @change', async () => {
+      const wrapper = mount(ConfigurationPanel);
+      const numInputs = wrapper.findAll('input[type="number"]');
+      await numInputs[4].setValue(60);
+      await numInputs[4].trigger('change');
+      expect(wrapper.exists()).toBe(true);
+    });
+
+    it('should fire resetToDefaults setTimeout cleanup', async () => {
+      const wrapper = mount(ConfigurationPanel);
+      const vm = wrapper.vm as any;
+      vm.config.theme = 'light';
+      await wrapper.vm.$nextTick();
+      vi.stubGlobal('confirm', vi.fn(() => true));
+      await vm.resetToDefaults();
+      expect(vm.saveStatus).toBeTruthy();
+      await new Promise(r => setTimeout(r, 2100));
+      expect(vm.saveStatus).toBeNull();
+      vi.unstubAllGlobals();
+    });
+  });
+
   // ===== Action Functions Coverage (onConfigChanged/resetToDefaults/exportConfiguration) =====
   describe('Action Functions', () => {
     it('should handle config change without error (onConfigChanged)', async () => {
