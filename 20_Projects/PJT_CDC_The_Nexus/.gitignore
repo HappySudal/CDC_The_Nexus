@@ -42,6 +42,11 @@ npm-debug.log*
 coverage/
 *.tsbuildinfo
 
+# Playwright E2E artifacts
+test-results/
+e2e-report/
+playwright-report/
+
 # Release archives & build artifacts
 06_Releases/
 *.zip
