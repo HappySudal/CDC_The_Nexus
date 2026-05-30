@@ -96,7 +96,41 @@
 1. `1540d98` — test(nexus): Funcs 90% 보강 (4컴포넌트 +39테스트)
 2. `cfae830` — docs(reports): Daily + CDC + QC + Phase D 정의서
 3. `b84ea5a` — feat(nexus): Phase D1.1 — Playwright E2E 환경 도입
-4. `(다음)` — feat(nexus): Phase D1.2 — 5대 E2E spec + D1.3 CI 게이트
+4. `b440073` — feat(nexus,ci): Phase D1.2 specs + D1.3 CI 게이트
+5. `(다음)` — feat(cdc,nexus): Hook 영속화 + D2.1 빌드 게이트 + D2.2 패키징 + 정책 명문화
+
+---
+
+## 🆕 Phase D2 진척 (본 세션 추가)
+
+| 항목 | 상태 | 비고 |
+|:---|:---:|:---|
+| **D2.1** Vite 빌드 게이트 + Bundle size (gzip ≤ 250 KB) | ✅ | pre-push + GH Actions yml에 통합, 실측 JS gzip 214 KB |
+| **D2.2** Electron Builder 설정 강화 | ✅ | `dist-electron/` output, win/mac/linux 타겟, compression maximum, nsis 사용자 옵션, 분할 스크립트 (build:vite/build:electron/dist:win/mac/linux) |
+| **D2.2** 실측 패키징 검증 | ⚠️ | Windows symlink 권한(darwin signing cache) 제약. 설정은 정상, 권한 해결 후 검증 이월 |
+| **D2.3** 변경로그 자동화 | 📋 | 다음 세션 |
+| **D2.4** 코드사이닝 | 📋 | 인증서 비용 결재 후 |
+
+---
+
+## 🆕 인프라 영속화 (안건 3)
+
+| 항목 | 상태 |
+|:---|:---:|
+| `.cdc/hooks/pre-commit` (소스 박제) | ✅ |
+| `.cdc/hooks/pre-push` (소스 박제) | ✅ |
+| `.cdc/scripts/install_hooks.sh` (bash) | ✅ |
+| `.cdc/scripts/install_hooks.ps1` (PowerShell) | ✅ |
+| 동기화 후 신규 PC: `pwsh .cdc/scripts/install_hooks.ps1` 1회 실행으로 hook 자동 배포 | ✅ |
+
+---
+
+## 🆕 정책 안건 (안건 1)
+
+`Phase_D_Proposal_20260530_*.md` §7.1에 명문 등재:
+- **현재 정책**: γ (현상 유지)
+- **이유**: 단위 테스트 회귀 신호망 보존 + 향후 App.vue 분할 시 즉시 가용
+- **재논의 트리거**: App.vue 분할 / 6개월 미변경 / 의장님 명시 결재
 
 ---
 

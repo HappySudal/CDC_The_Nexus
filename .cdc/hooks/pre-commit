@@ -1,0 +1,120 @@
+#!/bin/bash
+# ============================================================================
+# CDC Pre-Commit Hook (Constitution + SOP-31)
+# Source-controlled copy — installed via .cdc/scripts/install_hooks.sh
+# ============================================================================
+# Layer 1: CDC Universal Constitution check (.cdc/CONSTITUTION.yaml)
+#          Blocks Tier 0 violations, forbidden words, Mermaid diagrams
+# Layer 2: SOP-31 CLAUDE.md validation (legacy)
+#
+# Bypass (Chairman emergency): CDC_BYPASS=1 git commit ...
+# Exit codes: 0=PASS, 1=WARNING (legacy), 2=CRITICAL (blocks commit)
+# ============================================================================
+# NOTE: `set -e` removed (2026-05-30) — incompatible with SOP-31 Tier 2/3 validators
+# that return exit 1 (WARN). Hook now relies on explicit MAX_EXIT tracking + final exit.
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+# ----------------------------------------------------------------------------
+# Layer 1: CDC Universal Constitution Check
+# ----------------------------------------------------------------------------
+CDC_CHECK_SCRIPT="$REPO_ROOT/.cdc/scripts/constitution_check.py"
+
+if [ -f "$CDC_CHECK_SCRIPT" ]; then
+    export PYTHONIOENCODING=utf-8
+    if command -v py >/dev/null 2>&1; then
+        py "$CDC_CHECK_SCRIPT" || exit 2
+    elif command -v python >/dev/null 2>&1; then
+        python "$CDC_CHECK_SCRIPT" || exit 2
+    elif command -v python3 >/dev/null 2>&1; then
+        python3 "$CDC_CHECK_SCRIPT" || exit 2
+    else
+        echo "[CDC] No Python interpreter found. Skipping Layer 1."
+    fi
+fi
+
+# ----------------------------------------------------------------------------
+# Layer 2: SOP-31 Legacy Validation
+# ----------------------------------------------------------------------------
+VALIDATOR_DIR=".claude/validators"
+MAX_EXIT=0
+MODIFIED_FILES=$(git diff --cached --name-only | grep "CLAUDE\.md$" || true)
+
+if [ -z "$MODIFIED_FILES" ]; then
+    exit 0
+fi
+
+echo "🔍 SOP-31 Pre-Commit Validation (Tier 1-3)"
+echo "=========================================="
+
+for FILE in $MODIFIED_FILES; do
+    echo ""
+    echo "📄 Validating: $FILE"
+
+    # Tier 1: Encoding & Format
+    if [ -f "$VALIDATOR_DIR/validate_encoding.py" ]; then
+        python3 "$VALIDATOR_DIR/validate_encoding.py" "$FILE" > /tmp/tier1.json 2>&1
+        TIER1_EXIT=$?
+        if [ $TIER1_EXIT -eq 2 ]; then
+            echo "  ❌ Tier 1 CRITICAL: Encoding/Slogan/LineEnding"
+            cat /tmp/tier1.json | grep -i "error\|critical" || true
+            MAX_EXIT=2
+        elif [ $TIER1_EXIT -eq 1 ]; then
+            echo "  ⚠️  Tier 1 WARNING"
+            MAX_EXIT=1
+        else
+            echo "  ✅ Tier 1 PASS"
+        fi
+    fi
+
+    # Tier 2: Links & References
+    if [ -f "$VALIDATOR_DIR/validate_links.py" ]; then
+        python3 "$VALIDATOR_DIR/validate_links.py" "$FILE" > /tmp/tier2.json 2>&1
+        TIER2_EXIT=$?
+        if [ $TIER2_EXIT -eq 2 ]; then
+            echo "  ❌ Tier 2 CRITICAL: Broken links/invalid paths"
+            cat /tmp/tier2.json | grep -i "error\|critical" || true
+            MAX_EXIT=2
+        elif [ $TIER2_EXIT -eq 1 ]; then
+            echo "  ⚠️  Tier 2 WARNING"
+            [ $MAX_EXIT -lt 1 ] && MAX_EXIT=1
+        else
+            echo "  ✅ Tier 2 PASS"
+        fi
+    fi
+
+    # Tier 3: Content Quality
+    if [ -f "$VALIDATOR_DIR/validate_content.py" ]; then
+        python3 "$VALIDATOR_DIR/validate_content.py" "$FILE" > /tmp/tier3.json 2>&1
+        TIER3_EXIT=$?
+        if [ $TIER3_EXIT -eq 2 ]; then
+            echo "  ❌ Tier 3 CRITICAL: Grammar/Mermaid/Tech accuracy"
+            cat /tmp/tier3.json | grep -i "error\|critical" || true
+            MAX_EXIT=2
+        elif [ $TIER3_EXIT -eq 1 ]; then
+            echo "  ⚠️  Tier 3 WARNING"
+            [ $MAX_EXIT -lt 1 ] && MAX_EXIT=1
+        else
+            echo "  ✅ Tier 3 PASS"
+        fi
+    fi
+done
+
+echo ""
+echo "=========================================="
+
+if [ $MAX_EXIT -eq 2 ]; then
+    echo "❌ COMMIT BLOCKED: Critical validation failures"
+    echo "Fix errors above and try again."
+    exit 2
+elif [ $MAX_EXIT -eq 1 ]; then
+    echo "⚠️  WARNING: Some validation warnings detected"
+    echo "Review warnings above before committing."
+    exit 0
+else
+    echo "✅ All CLAUDE.md files validated successfully"
+    exit 0
+fi
+
+# "시각(時刻)에 존재하고, 시간(時間) 에 소멸한다."
+# "Exists in the Moment, Vanishes in Time."

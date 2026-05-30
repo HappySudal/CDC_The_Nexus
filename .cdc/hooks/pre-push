@@ -1,0 +1,72 @@
+#!/bin/bash
+# ============================================================================
+# CDC Pre-Push Hook (NEXUS E2E + Vitest Gate)
+# Source-controlled copy — installed via .cdc/scripts/install_hooks.sh
+# ============================================================================
+# Push 전 NEXUS 프로젝트 변경이 있으면 Vitest + Playwright E2E 게이트 통과 필수.
+# Bypass: CDC_BYPASS=1 git push ...
+# ============================================================================
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+NEXUS_DIR="$REPO_ROOT/20_Projects/PJT_CDC_The_Nexus"
+
+if [ "$CDC_BYPASS" = "1" ]; then
+    echo "[CDC] Bypass enabled — skipping gate."
+    exit 0
+fi
+
+# Push에 NEXUS 변경 포함 여부 검사
+NEXUS_CHANGES=$(git diff --name-only @{u}..HEAD 2>/dev/null | grep "^20_Projects/PJT_CDC_The_Nexus/" || true)
+
+if [ -z "$NEXUS_CHANGES" ]; then
+    echo "[CDC] NEXUS 변경 없음 — 게이트 스킵."
+    exit 0
+fi
+
+echo "[CDC] NEXUS 변경 감지 — Vitest + Build + E2E 게이트 실행"
+
+cd "$NEXUS_DIR" || exit 2
+
+# (1/3) Vitest
+echo "[CDC] (1/3) Vitest 실행..."
+if ! npx vitest run --reporter=default --silent; then
+    echo "❌ Vitest 게이트 실패 — push 차단"
+    exit 2
+fi
+echo "✅ Vitest 게이트 통과"
+
+# (2/3) Vite 빌드 + Bundle size 검증
+echo "[CDC] (2/3) Vite 프로덕션 빌드..."
+if ! npx vite build; then
+    echo "❌ Vite 빌드 실패 — push 차단"
+    exit 2
+fi
+
+# Bundle size 임계값 (gzip JS 250KB)
+JS_GZ_LIMIT_KB=250
+JS_FILE=$(ls -S dist/assets/index-*.js 2>/dev/null | head -1)
+if [ -n "$JS_FILE" ] && command -v gzip >/dev/null 2>&1; then
+    JS_GZ_BYTES=$(gzip -c "$JS_FILE" | wc -c)
+    JS_GZ_KB=$((JS_GZ_BYTES / 1024))
+    if [ "$JS_GZ_KB" -gt "$JS_GZ_LIMIT_KB" ]; then
+        echo "❌ Bundle size 초과: ${JS_GZ_KB}KB > ${JS_GZ_LIMIT_KB}KB"
+        exit 2
+    fi
+    echo "✅ Vite 빌드 통과 (JS gzip ${JS_GZ_KB}KB ≤ ${JS_GZ_LIMIT_KB}KB)"
+else
+    echo "✅ Vite 빌드 통과 (size check skipped)"
+fi
+
+# (3/3) Playwright E2E
+echo "[CDC] (3/3) Playwright E2E 실행..."
+if ! npx playwright test --reporter=line; then
+    echo "❌ E2E 게이트 실패 — push 차단"
+    exit 2
+fi
+echo "✅ E2E 게이트 통과"
+
+echo "[CDC] 모든 게이트 PASS — push 허락"
+exit 0
+
+# "시각(時刻)에 존재하고, 시간(時間)에 소멸한다."
+# "Exists in the Moment, Vanishes in Time."

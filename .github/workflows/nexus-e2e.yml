@@ -41,11 +41,42 @@ jobs:
             console.log('Coverage gate PASS');
           "
 
+  build:
+    name: Vite Build + Bundle Size Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 20_Projects/PJT_CDC_The_Nexus/package-lock.json
+      - run: npm ci
+      - name: Vite production build
+        run: npx vite build
+      - name: Bundle size gate (gzip JS ≤ 250 KB)
+        run: |
+          JS_FILE=$(ls -S dist/assets/index-*.js | head -1)
+          JS_GZ_KB=$(($(gzip -c "$JS_FILE" | wc -c) / 1024))
+          echo "JS gzip size: ${JS_GZ_KB} KB"
+          if [ "$JS_GZ_KB" -gt 250 ]; then
+            echo "::error::Bundle size ${JS_GZ_KB}KB exceeds 250 KB limit"
+            exit 1
+          fi
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexus-dist
+          path: 20_Projects/PJT_CDC_The_Nexus/dist
+          retention-days: 1
+
   e2e:
     name: Playwright E2E (Electron)
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: test
+    needs: build
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -56,8 +87,11 @@ jobs:
       - run: npm ci
       - name: Install xvfb (Electron headless on Linux)
         run: sudo apt-get update && sudo apt-get install -y xvfb
-      - name: Build Vite (E2E targets dist/)
-        run: npx vite build
+      - name: Download dist artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: nexus-dist
+          path: 20_Projects/PJT_CDC_The_Nexus/dist
       - name: Run Playwright E2E
         run: xvfb-run --auto-servernum npx playwright test
       - name: Upload report on failure
