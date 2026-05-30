@@ -22,7 +22,12 @@
     "e2e": "playwright test",
     "e2e:headed": "playwright test --headed",
     "e2e:report": "playwright show-report e2e-report",
-    "generate:audit": "node src/scripts/generate-component-audit.mjs"
+    "generate:audit": "node src/scripts/generate-component-audit.mjs",
+    "release": "standard-version",
+    "release:dry": "standard-version --dry-run",
+    "release:major": "standard-version --release-as major",
+    "release:minor": "standard-version --release-as minor",
+    "release:patch": "standard-version --release-as patch"
   },
   "dependencies": {
     "cytoscape": "^3.28.1",
@@ -41,6 +46,7 @@
     "electron-playwright-helpers": "^2.1.0",
     "jsdom": "^29.1.1",
     "playwright": "^1.60.0",
+    "standard-version": "^9.5.0",
     "vite": "^5.0.0",
     "vitest": "^4.1.6",
     "wait-on": "^7.0.1"
@@ -63,10 +69,22 @@
     },
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] },
-        { "target": "portable", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
-      "artifactName": "${productName}-${version}-${arch}.${ext}"
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "signingHashAlgorithms": ["sha256"],
+      "signDlls": false
     },
     "nsis": {
       "oneClick": false,
@@ -76,14 +94,25 @@
     },
     "mac": {
       "target": [
-        { "target": "dmg", "arch": ["x64", "arm64"] }
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
       ],
       "category": "public.app-category.productivity",
       "artifactName": "${productName}-${version}-${arch}.${ext}"
     },
     "linux": {
       "target": [
-        { "target": "AppImage", "arch": ["x64"] }
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "category": "Utility",
       "artifactName": "${productName}-${version}-${arch}.${ext}"

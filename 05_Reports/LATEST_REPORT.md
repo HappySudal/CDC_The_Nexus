@@ -69,8 +69,10 @@
 
 | 우선순위 | 업무 | 예상 | 비고 |
 |:---:|:---|:---:|:---|
-| 📋 다음 | **D2 — CI/CD 배포 파이프라인** | 8h | Vite 빌드 게이트 + Electron Builder + 변경로그 + 코드사이닝 |
-| 📋 다음 | **D3 — Live IPC 라우팅** | 10h | 13사도 IPC 실배선 + 헌법 알림 + OpenClaude 직결 |
+| ✅ 완료 | **D2 전체** (D2.1~D2.4) | 8h | Vite 게이트 + Electron Builder + standard-version + 코드사이닝 설정 |
+| ✅ 완료 | **D3 전체** (D3.1~D3.4) | 10h | 13사도 IPC + 헌법 알림 강화 + OpenClaude 직결 + 토큰 게이트 통합 |
+| 📋 추후 | D2.4 인증서 발급 + 실측 사이닝 | — | 의장님 결재 |
+| 📋 추후 | D3.3 OpenClaude API 키 주입 + 실호출 검증 | — | 의장님 결재 |
 | 📋 추후 | TaskCreationForm.vue/AgentDashboard.vue **실 UI 통합 결재** | 별도 | 단위 테스트 중복 검토 |
 | 📋 추후 | OllamaModelDownloader Funcs 80%→95% | 30분 | |
 | 📋 추후 | SearchInterface Funcs 83.33%→95% | 30분 | |
@@ -83,10 +85,10 @@
 
 ## 📊 누적 통계 (NEXUS)
 
-- **Vitest**: 1,172/1,172 (24 파일, 55.63s)
-- **Playwright E2E**: 20/20 (6 spec, 11.9s)
-- **Funcs 커버리지**: 93.12% (목표 90% 초과)
-- **회귀 신호망**: 단위 + E2E + Coverage Gate + Pre-push hook
+- **Vitest**: **1,195/1,195** (26 파일, 58.07s) — D3에서 +23 신규 (apostle 11, openclaude 12)
+- **Playwright E2E**: 20/20 (6 spec, 15.3s)
+- **Funcs 커버리지**: 93.12% (변동 없음, electron/ 제외)
+- **회귀 신호망**: 단위 + E2E + Coverage Gate + Pre-push hook + standard-version
 - **워킹 트리**: 클린 (모든 산출물 박제)
 
 ---
@@ -97,7 +99,8 @@
 2. `cfae830` — docs(reports): Daily + CDC + QC + Phase D 정의서
 3. `b84ea5a` — feat(nexus): Phase D1.1 — Playwright E2E 환경 도입
 4. `b440073` — feat(nexus,ci): Phase D1.2 specs + D1.3 CI 게이트
-5. `(다음)` — feat(cdc,nexus): Hook 영속화 + D2.1 빌드 게이트 + D2.2 패키징 + 정책 명문화
+5. `480f431` — feat(cdc,nexus): Hook 영속화 + D2.1 빌드 게이트 + D2.2 패키징 + 정책 명문화
+6. `(다음)` — feat(nexus): D2.3 변경로그 + D2.4 사이닝 설정 + D3 (13사도 IPC + OpenClaude + 토큰 게이트)
 
 ---
 
