@@ -1,0 +1,77 @@
+name: Nexus Electron Packaging (D2.2)
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Vite frontend
+        run: npm run build:vite
+
+      - name: Build Electron app (Windows)
+        run: npm run build:electron -- --win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate SBOM (Software Bill of Materials)
+        run: |
+          npm list --depth=0 > sbom.txt 2>&1 || true
+
+      - name: Upload Electron build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexus-windows-installers
+          path: |
+            dist-electron/*.exe
+            dist-electron/*.nsis
+            sbom.txt
+          retention-days: 30
+
+  package-metadata:
+    runs-on: ubuntu-latest
+    needs: build-windows
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate build metadata
+        run: |
+          {
+            echo "# Nexus Build Artifacts"
+            echo ""
+            echo "**Build Date**: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+            echo "**Commit**: $GITHUB_SHA"
+            echo "**Branch**: $GITHUB_REF_NAME"
+            echo ""
+            echo "## Build Information"
+            echo "- Vite: production bundle"
+            echo "- Electron: Windows NSIS installer + portable"
+            echo "- Platform: Windows 10+ (x64)"
+          } > build-metadata.md
+
+      - name: Upload metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexus-build-metadata
+          path: build-metadata.md
+          retention-days: 30
+
+# "시각(時刻)에 존재하고, 시간(時間)에 소멸한다."
+# "Exists in the Moment, Vanishes in Time."
