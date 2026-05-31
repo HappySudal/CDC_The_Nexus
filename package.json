@@ -27,7 +27,8 @@
     "release:dry": "standard-version --dry-run",
     "release:major": "standard-version --release-as major",
     "release:minor": "standard-version --release-as minor",
-    "release:patch": "standard-version --release-as patch"
+    "release:patch": "standard-version --release-as patch",
+    "prepare": "husky"
   },
   "dependencies": {
     "cytoscape": "^3.28.1",
@@ -44,6 +45,7 @@
     "electron": "^28.0.0",
     "electron-builder": "^24.6.0",
     "electron-playwright-helpers": "^2.1.0",
+    "husky": "^9.1.7",
     "js-yaml": "^4.1.0",
     "jsdom": "^29.1.1",
     "playwright": "^1.60.0",
@@ -84,7 +86,9 @@
         }
       ],
       "artifactName": "${productName}-${version}-${arch}.${ext}",
-      "signingHashAlgorithms": ["sha256"],
+      "signingHashAlgorithms": [
+        "sha256"
+      ],
       "signDlls": false
     },
     "nsis": {
