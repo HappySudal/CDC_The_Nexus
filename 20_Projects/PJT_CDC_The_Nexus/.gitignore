@@ -64,3 +64,14 @@ dist-electron/
 # Python / graph caches
 __pycache__/
 .nexus-graph/
+
+# Coverage HTML report (vitest v8) & run logs
+html/
+*-run-log.txt
+
+# 일회성 커버리지 분석 스크립트 (디버그 잔재, 루트 청정화)
+analyze_coverage.py
+analyze_fn_coverage.py
+check_coverage.py
+debug_coverage.py
+identify_uncovered.py
