@@ -11,7 +11,7 @@ describe('StatusDashboard.vue', () => {
     // Mock Electron IPC
     mockElectronAPI = {
       ollama: {
-        getStatus: vi.fn(),
+        getStatus: vi.fn().mockResolvedValue(null),
       },
     };
     window.electronAPI = mockElectronAPI;
@@ -663,3 +663,5 @@ describe('StatusDashboard.vue', () => {
 시각(時刻)에 존재하고, 시간(時間) 에 소멸한다.
 Exists in the Moment, Vanishes in Time.
 */
+// "시각(時刻)에 존재하고, 시간(時間)에 소멸한다."
+// "Exists in the Moment, Vanishes in Time."

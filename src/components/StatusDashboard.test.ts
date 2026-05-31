@@ -11,7 +11,7 @@ describe('StatusDashboard.vue', () => {
     // Mock Electron IPC
     mockElectronAPI = {
       ollama: {
-        getStatus: vi.fn(),
+        getStatus: vi.fn().mockResolvedValue(null),
       },
     };
     window.electronAPI = mockElectronAPI;
