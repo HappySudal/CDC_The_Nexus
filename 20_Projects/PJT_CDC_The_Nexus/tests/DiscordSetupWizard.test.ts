@@ -344,6 +344,55 @@ describe('DiscordSetupWizard.vue - Complete Test Suite', () => {
     expect(masked).toContain('••••••••');
   });
 
+  // ==========================================
+  // 5. Electron Fallback & Testing Mode (34-35)
+  // ==========================================
+  it('[TC-34] Electron API가 없을 때 테스트 모드로 동작하는가', async () => {
+    const wrapper = mount(DiscordSetupWizard);
+    // Electron API 제거
+    delete (window as any).electronAPI;
+
+    await wrapper.find('#webhook-url').setValue('https://discord.com/api/webhooks/123/abc');
+    const buttons = wrapper.findAll('.navigation-buttons button');
+    await buttons[buttons.length - 1].trigger('click');
+
+    await wrapper.vm.sendTestMessage();
+    // 테스트 모드에서 성공적으로 처리되어야 함
+    expect(wrapper.vm.testStatus).toBe('success');
+    expect(wrapper.vm.statusMessage).toContain('테스트 모드');
+  });
+
+  it('[TC-35] saveWebhookConfiguration 후 2초 경과 시 cancelWizard 호출되는가', async () => {
+    vi.useFakeTimers();
+    const wrapper = mount(DiscordSetupWizard);
+    window.electronAPI!.discord!.saveWebhook = vi.fn().mockResolvedValue(undefined);
+
+    await wrapper.find('#webhook-url').setValue('https://discord.com/api/webhooks/123/abc');
+    const buttons = wrapper.findAll('.navigation-buttons button');
+
+    // Step 2로 이동
+    await buttons[buttons.length - 1].trigger('click');
+    // 테스트 성공으로 진행
+    window.electronAPI!.discord!.testWebhook = vi.fn().mockResolvedValue({ success: true });
+    await wrapper.vm.sendTestMessage();
+
+    // Step 3로 이동
+    const buttons2 = wrapper.findAll('.navigation-buttons button');
+    await buttons2[buttons2.length - 1].trigger('click');
+
+    // 저장 버튼 클릭
+    await wrapper.vm.saveWebhookConfiguration();
+
+    // 2초 경과
+    await vi.advanceTimersByTimeAsync(2000);
+
+    // cancelWizard 호출되어 currentStep이 1로 초기화되어야 함
+    expect(wrapper.vm.currentStep).toBe(1);
+    expect(wrapper.vm.webhookUrl).toBe('');
+
+    vi.useRealTimers();
+  });
+
   it('[TC-33] Step 3의 \"다음 단계\" 안내가 표시되는가', async () => {
     const wrapper = mount(DiscordSetupWizard);
     window.electronAPI!.discord!.testWebhook = vi.fn().mockResolvedValue({ success: true });
@@ -595,3 +644,6 @@ describe('DiscordSetupWizard.vue - Complete Test Suite', () => {
 시각(時刻)에 존재하고, 시간(時間) 에 소멸한다.
 Exists in the Moment, Vanishes in Time.
 */
+
+// "시각(時刻)에 존재하고, 시간(時間)에 소멸한다."
+// "Exists in the Moment, Vanishes in Time."

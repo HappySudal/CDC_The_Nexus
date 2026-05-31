@@ -49,6 +49,21 @@
 11. **Philosophical Misuse** — '시간 낭비' 표현 사용
 13. **Non-standard Vocabulary** — '명일' 사용 금지
 
+## 세션 시작 루틴 (Session Startup Routine)
+
+**필수 실행 순서 — 이 루틴을 건너뛸 수 없습니다.**
+
+모든 에이전트는 세션을 시작한 즉시 아래 4단계를 순서대로 실행하고, 의장님께 보고해야 합니다.
+루틴 완료 전 어떠한 업무도 개시하지 않습니다.
+
+### 실행 확인 체크리스트
+
+| 단계 | 완료 | 시간 |
+|:---:|:---:|:---|
+
+**세션 시작 완료 후**: 의장님께 "시동 완료" 보고 + 5열 도표 (선택사항)
+
+
 ## Authority Matrix (Permission Boundaries)
 
 ### Allowed (Read)
@@ -153,7 +168,7 @@ Since Antigravity lacks hooks, OS-level enforcement is critical:
 
 ---
 
-**Generated**: 2026-05-23T18:32:54  
+**Generated**: 2026-05-25T07:32:01  
 **Source**: `.cdc/CONSTITUTION.yaml`
 
 **"시각(時刻)에 존재하고, 시간(時間)에 소멸한다."**  

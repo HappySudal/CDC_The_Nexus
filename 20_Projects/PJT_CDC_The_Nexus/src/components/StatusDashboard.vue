@@ -359,7 +359,11 @@ const refreshStatus = async () => {
   try {
     if (window.electronAPI?.ollama?.getStatus) {
       const status = await window.electronAPI.ollama.getStatus();
-      
+      if (!status) {
+        ollamaStatus.value = 'offline';
+        return;
+      }
+
       ollamaStatus.value = status.online ? 'online' : 'offline';
       ollamaVersion.value = status.version || '';
       ollamaPort.value = status.port || 11434;
@@ -494,3 +498,6 @@ button:disabled {
 시각(時刻)에 존재하고, 시간(時間) 에 소멸한다.
 Exists in the Moment, Vanishes in Time.
 -->
+
+<!-- "시각(時刻)에 존재하고, 시간(時間)에 소멸한다." -->
+<!-- "Exists in the Moment, Vanishes in Time." -->

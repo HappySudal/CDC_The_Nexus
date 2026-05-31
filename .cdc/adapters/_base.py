@@ -197,6 +197,50 @@ def render_project_workflow(constitution: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def render_session_startup(constitution: dict) -> str:
+    """Render session startup routine from CONSTITUTION.yaml."""
+    startup = constitution.get("session_startup", {})
+    steps = startup.get("steps", [])
+
+    lines = [
+        "## 세션 시작 루틴 (Session Startup Routine)",
+        "",
+        "**필수 실행 순서 — 이 루틴을 건너뛸 수 없습니다.**",
+        "",
+        "모든 에이전트는 세션을 시작한 즉시 아래 4단계를 순서대로 실행하고, 의장님께 보고해야 합니다.",
+        "루틴 완료 전 어떠한 업무도 개시하지 않습니다.",
+        "",
+    ]
+
+    for i, step in enumerate(steps, 1):
+        desc = step.get("description", "")
+        target = step.get("target", "")
+        skippable = step.get("skippable", False)
+
+        status = "❌ 건너뛸 수 없음" if not skippable else "⚠️ 필요 시만"
+
+        lines.append(f"### STEP {i}: {desc}")
+        lines.append(f"- 파일: `{target}`")
+        lines.append(f"- 상태: {status}")
+        lines.append("")
+
+    lines.append("### 실행 확인 체크리스트")
+    lines.append("")
+    lines.extend([
+        "| 단계 | 완료 | 시간 |",
+        "|:---:|:---:|:---|",
+    ])
+
+    for i in range(1, len(steps) + 1):
+        lines.append(f"| STEP {i} | ☐ | — |")
+
+    lines.append("")
+    lines.append("**세션 시작 완료 후**: 의장님께 \"시동 완료\" 보고 + 5열 도표 (선택사항)")
+    lines.append("")
+
+    return "\n".join(lines)
+
+
 def render_footer() -> str:
     """Render a standardized footer with slogan."""
     return (

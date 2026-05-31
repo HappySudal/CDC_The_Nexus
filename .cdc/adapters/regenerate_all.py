@@ -52,7 +52,7 @@ def run_adapter(name: str) -> int:
 
 def main() -> int:
     print("=" * 60)
-    print("CDC Universal Constitution — Regenerate All Adapters")
+    print("CDC Universal Constitution - Regenerate All Adapters")
     print("=" * 60)
 
     failures = 0

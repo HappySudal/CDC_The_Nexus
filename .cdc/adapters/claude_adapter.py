@@ -23,6 +23,7 @@ from _base import (  # noqa: E402
     render_footer,
     render_header,
     render_project_workflow,
+    render_session_startup,
     render_sovereign_protocol,
     render_tier_0_warning,
     write_output,
@@ -41,13 +42,6 @@ def render_claude_specific(constitution: dict) -> str:
         "- **MCP Servers**: Configured in `.claude/mcp_servers.json`",
         "- **Memory**: Persistent at `~/.claude/projects/<workspace>/memory/`",
         "- **Skills**: Loaded from `.claude/skills/`",
-        "",
-        "### Session Startup Routine",
-        "",
-        "1. Read `01_Control_Tower/01_MASTER_CONSTITUTION.md`",
-        "2. Read `05_Reports/LATEST_REPORT.md`",
-        "3. Read `01_Control_Tower/99_Violations/CONSTITUTION_VIOLATIONS_LOG.md`",
-        "4. Brief Chairman with 5-column table",
     ]
     return "\n".join(lines)
 
@@ -60,6 +54,8 @@ def main() -> int:
         "",
         render_sovereign_protocol(constitution),
         render_fatal_errors(constitution),
+        "",
+        render_session_startup(constitution),
         "",
         render_authority_matrix(constitution),
         "",

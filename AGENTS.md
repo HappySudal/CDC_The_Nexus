@@ -49,6 +49,21 @@
 11. **Philosophical Misuse** — '시간 낭비' 표현 사용
 13. **Non-standard Vocabulary** — '명일' 사용 금지
 
+## 세션 시작 루틴 (Session Startup Routine)
+
+**필수 실행 순서 — 이 루틴을 건너뛸 수 없습니다.**
+
+모든 에이전트는 세션을 시작한 즉시 아래 4단계를 순서대로 실행하고, 의장님께 보고해야 합니다.
+루틴 완료 전 어떠한 업무도 개시하지 않습니다.
+
+### 실행 확인 체크리스트
+
+| 단계 | 완료 | 시간 |
+|:---:|:---:|:---|
+
+**세션 시작 완료 후**: 의장님께 "시동 완료" 보고 + 5열 도표 (선택사항)
+
+
 ## Authority Matrix (Permission Boundaries)
 
 ### Allowed (Read)
@@ -137,13 +152,6 @@ Goal document (`PROJECT_GOALS.md`) is immutable after STEP 1 — never modify in
 Codex has **no persistent memory** and **no hook system**.
 Each session is fresh — rules must be re-loaded from this file.
 
-### Mandatory First Action
-
-1. Read this file (AGENTS.md) in full
-2. Read `01_Control_Tower/01_MASTER_CONSTITUTION.md`
-3. Read `05_Reports/LATEST_REPORT.md`
-4. Brief Chairman with 5-column table
-
 ### Enforcement Reality
 
 Codex cannot self-enforce. Compliance depends on:
@@ -155,7 +163,7 @@ If a command is blocked, do NOT retry. Report to Chairman.
 
 ---
 
-**Generated**: 2026-05-23T18:32:54  
+**Generated**: 2026-05-25T07:32:01  
 **Source**: `.cdc/CONSTITUTION.yaml`
 
 **"시각(時刻)에 존재하고, 시간(時間)에 소멸한다."**  
