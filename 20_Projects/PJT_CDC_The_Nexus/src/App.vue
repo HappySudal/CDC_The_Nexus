@@ -41,6 +41,9 @@
           <li @click="activeTab = 'discord'" :class="{ active: activeTab === 'discord' }">
             🔗 Discord 연결
           </li>
+          <li @click="activeTab = 'voice'" :class="{ active: activeTab === 'voice' }">
+            🎤 음성 대화
+          </li>
           <li @click="activeTab = 'status'" :class="{ active: activeTab === 'status' }">
             📊 시스템 상태
           </li>
@@ -59,28 +62,41 @@
           <li @click="activeTab = 'health'" :class="{ active: activeTab === 'health' }">
             💊 시스템 상태 모니터
           </li>
+          <li @click="activeTab = 'agentMonitor'" :class="{ active: activeTab === 'agentMonitor' }">
+            🛰️ 사도 모니터
+          </li>
+          <li @click="activeTab = 'realtime'" :class="{ active: activeTab === 'realtime' }">
+            📡 실시간 대시보드
+          </li>
+          <li @click="activeTab = 'metrics'" :class="{ active: activeTab === 'metrics' }">
+            📈 메트릭 그래프
+          </li>
+          <li @click="activeTab = 'search'" :class="{ active: activeTab === 'search' }">
+            🔎 검색
+          </li>
+          <li @click="activeTab = 'ollamaManager'" :class="{ active: activeTab === 'ollamaManager' }">
+            🧠 모델 관리(고급)
+          </li>
+          <li @click="activeTab = 'performance'" :class="{ active: activeTab === 'performance' }">
+            ⚡ 성능 모니터
+          </li>
+          <li @click="activeTab = 'websocket'" :class="{ active: activeTab === 'websocket' }">
+            🔌 WebSocket
+          </li>
         </ul>
       </nav>
 
       <section class="content">
-        <!-- 헌법 탭 -->
+        <!-- 헌법 탭 (ConstitutionViewer 실 컴포넌트) -->
         <div v-if="activeTab === 'constitution'" class="tab-content">
           <h2>📜 사령부 헌법</h2>
-          <div class="constitution-viewer">
-            <button @click="loadConstitution" class="btn-primary">헌법 로드</button>
-            <pre v-if="constitution" class="content-box">{{ constitution }}</pre>
-            <p v-else class="placeholder">헌법을 로드하려면 버튼을 클릭하세요.</p>
-          </div>
+          <ConstitutionViewer />
         </div>
 
-        <!-- 리포트 탭 -->
+        <!-- 리포트 탭 (ReportLoader 실 컴포넌트) -->
         <div v-if="activeTab === 'reports'" class="tab-content">
           <h2>📊 최신 리포트</h2>
-          <div class="report-viewer">
-            <button @click="loadLatestReport" class="btn-primary">리포트 새로고침</button>
-            <pre v-if="latestReport" class="content-box">{{ latestReport }}</pre>
-            <p v-else class="placeholder">리포트를 로드하려면 버튼을 클릭하세요.</p>
-          </div>
+          <ReportLoader />
         </div>
 
         <!-- 기억 창고 탭 (Knowledge Graph 시각화) -->
@@ -99,115 +115,19 @@
           </div>
         </div>
 
-        <!-- 15사도 탭 (Scope 1: 15사도 풀 로드) -->
+        <!-- 15사도 탭 (AgentDashboard 실 컴포넌트) -->
         <div v-if="activeTab === 'agents'" class="tab-content">
           <h2>🤖 15사도 상태 & 메트릭</h2>
-          <div class="agents-section">
-            <div class="agents-grid">
-              <div
-                v-for="agent in agents"
-                :key="agent.id"
-                class="agent-card"
-                @click="selectAgent(agent)"
-                :class="{ selected: selectedAgent?.id === agent.id }"
-              >
-                <div class="agent-header">
-                  <h3>{{ agent.name }}</h3>
-                  <span class="status-badge" :class="agent.status">{{ agent.status }}</span>
-                </div>
-                <p class="role">{{ agent.role }}</p>
-                <div class="metrics">
-                  <div class="metric">
-                    <span class="label">활성 작업</span>
-                    <span class="value">{{ agent.activeTasksCount }}</span>
-                  </div>
-                  <div class="metric">
-                    <span class="label">응답시간</span>
-                    <span class="value">{{ agent.responseTime }}ms</span>
-                  </div>
-                  <div class="metric">
-                    <span class="label">가동률</span>
-                    <span class="value">{{ agent.uptime }}%</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Scope 4: 에이전트 상세 정보 패널 -->
-            <div v-if="selectedAgent" class="agent-detail-panel">
-              <h3>{{ selectedAgent.name }} - 상세 정보</h3>
-              <div class="detail-content">
-                <p><strong>역할:</strong> {{ selectedAgent.role }}</p>
-                <p><strong>상태:</strong> {{ selectedAgent.status }}</p>
-                <p><strong>활성 작업:</strong> {{ selectedAgent.activeTasksCount }}</p>
-                <p><strong>평균 응답시간:</strong> {{ selectedAgent.responseTime }}ms</p>
-                <p><strong>가동률:</strong> {{ selectedAgent.uptime }}%</p>
-                <div class="detail-actions">
-                  <button @click="assignTaskToAgent(selectedAgent)" class="btn-secondary">작업 할당</button>
-                  <button @click="refreshAgentStatus(selectedAgent)" class="btn-secondary">상태 갱신</button>
-                  <button @click="selectedAgent = null" class="btn-secondary">닫기</button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <AgentDashboard />
         </div>
 
         <!-- 작업 관리 탭 (Scope 2 & 3: 작업 UI + IPC 파이프라인) -->
         <div v-if="activeTab === 'tasks'" class="tab-content">
           <h2>✅ 작업 관리 & IPC 명령</h2>
 
-          <!-- Scope 2: 작업 명령 UI -->
+          <!-- Scope 2: 작업 명령 UI (TaskCreationForm 실 컴포넌트) -->
           <div class="task-section">
-            <div class="task-form">
-              <h3>새로운 작업 생성</h3>
-              <form @submit.prevent="createTask">
-                <div class="form-group">
-                  <label>제목</label>
-                  <input
-                    v-model="newTask.title"
-                    type="text"
-                    placeholder="작업 제목 입력"
-                    required
-                  />
-                </div>
-                <div class="form-group">
-                  <label>설명</label>
-                  <textarea
-                    v-model="newTask.description"
-                    placeholder="작업 설명 입력"
-                    rows="3"
-                  ></textarea>
-                </div>
-                <div class="form-row">
-                  <div class="form-group">
-                    <label>담당자</label>
-                    <select v-model="newTask.assignee" required>
-                      <option value="">선택하기</option>
-                      <option v-for="agent in agents" :key="agent.id" :value="agent.id">
-                        {{ agent.name }}
-                      </option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label>우선순위</label>
-                    <select v-model="newTask.priority">
-                      <option value="low">낮음</option>
-                      <option value="medium">중간</option>
-                      <option value="high">높음</option>
-                      <option value="critical">긴급</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label>마감일</label>
-                  <input
-                    v-model="newTask.deadline"
-                    type="date"
-                  />
-                </div>
-                <button type="submit" class="btn-primary">작업 생성</button>
-              </form>
-            </div>
+            <TaskCreationForm @task-created="onTaskCreated" @cancel="() => {}" />
 
             <!-- Scope 3: IPC 파이프라인 - 작업 리스트 -->
             <div class="task-list">
@@ -256,14 +176,22 @@
         <!-- 모델 관리 탭 -->
         <div v-if="activeTab === 'ollama'" class="tab-content">
           <h2>🤖 Ollama 모델 관리</h2>
-          <OllamaModelDownloader />
+          <OllamaModelDownloader v-if="activeTab === 'ollama'" />
         </div>
 
         <!-- Discord 연결 탭 -->
         <div v-if="activeTab === 'discord'" class="tab-content">
           <h2>🔗 Discord 연결 마법사</h2>
           <div class="discord-section">
-            <DiscordSetupWizard />
+            <DiscordSetupWizard v-if="activeTab === 'discord'" />
+          </div>
+        </div>
+
+        <!-- 음성 대화 탭 -->
+        <div v-if="activeTab === 'voice'" class="tab-content">
+          <h2>🎤 음성 대화 시스템</h2>
+          <div class="voice-section">
+            <SpeechRecognitionPanel v-if="activeTab === 'voice'" />
           </div>
         </div>
 
@@ -271,7 +199,7 @@
         <div v-if="activeTab === 'status'" class="tab-content">
           <h2>📊 시스템 상태 대시보드</h2>
           <div class="status-section">
-            <StatusDashboard />
+            <StatusDashboard v-if="activeTab === 'status'" />
           </div>
         </div>
 
@@ -279,7 +207,7 @@
         <div v-if="activeTab === 'logs'" class="tab-content">
           <h2>📋 시스템 로그</h2>
           <div class="logs-section">
-            <LogViewer ref="logViewerRef" />
+            <LogViewer v-if="activeTab === 'logs'" ref="logViewerRef" />
           </div>
         </div>
 
@@ -287,7 +215,7 @@
         <div v-if="activeTab === 'config'" class="tab-content">
           <h2>⚙️ 시스템 설정</h2>
           <div class="config-section">
-            <ConfigurationPanel ref="configPanelRef" />
+            <ConfigurationPanel v-if="activeTab === 'config'" ref="configPanelRef" />
           </div>
         </div>
 
@@ -295,7 +223,7 @@
         <div v-if="activeTab === 'notifications'" class="tab-content">
           <h2>🔔 알림 센터</h2>
           <div class="notification-center-section">
-            <NotificationCenter ref="notificationCenterRef" />
+            <NotificationCenter v-if="activeTab === 'notifications'" ref="notificationCenterRef" />
           </div>
         </div>
 
@@ -303,7 +231,7 @@
         <div v-if="activeTab === 'analytics'" class="tab-content">
           <h2>📊 분석 대시보드</h2>
           <div class="analytics-dashboard-section">
-            <AnalyticsDashboard ref="analyticsDashboardRef" />
+            <AnalyticsDashboard v-if="activeTab === 'analytics'" ref="analyticsDashboardRef" />
           </div>
         </div>
 
@@ -311,8 +239,50 @@
         <div v-if="activeTab === 'health'" class="tab-content">
           <h2>💊 시스템 상태 모니터</h2>
           <div class="system-health-monitor-section">
-            <SystemHealthMonitor ref="systemHealthMonitorRef" />
+            <SystemHealthMonitor v-if="activeTab === 'health'" ref="systemHealthMonitorRef" />
           </div>
+        </div>
+
+        <!-- 사도 모니터 탭 (AgentStatusMonitor) -->
+        <div v-if="activeTab === 'agentMonitor'" class="tab-content">
+          <h2>🛰️ 사도 상태 모니터</h2>
+          <AgentStatusMonitor v-if="activeTab === 'agentMonitor'" />
+        </div>
+
+        <!-- 실시간 대시보드 탭 (RealTimeDashboard) -->
+        <div v-if="activeTab === 'realtime'" class="tab-content">
+          <h2>📡 실시간 대시보드</h2>
+          <RealTimeDashboard v-if="activeTab === 'realtime'" />
+        </div>
+
+        <!-- 메트릭 그래프 탭 (SystemMetricsGraphs) -->
+        <div v-if="activeTab === 'metrics'" class="tab-content">
+          <h2>📈 시스템 메트릭 그래프</h2>
+          <SystemMetricsGraphs v-if="activeTab === 'metrics'" />
+        </div>
+
+        <!-- 검색 탭 (SearchInterface) -->
+        <div v-if="activeTab === 'search'" class="tab-content">
+          <h2>🔎 통합 검색</h2>
+          <SearchInterface v-if="activeTab === 'search'" />
+        </div>
+
+        <!-- 모델 관리(고급) 탭 (OllamaModelManager) -->
+        <div v-if="activeTab === 'ollamaManager'" class="tab-content">
+          <h2>🧠 Ollama 모델 관리 (고급)</h2>
+          <OllamaModelManager v-if="activeTab === 'ollamaManager'" />
+        </div>
+
+        <!-- 성능 모니터 탭 (PerformanceMonitor) -->
+        <div v-if="activeTab === 'performance'" class="tab-content">
+          <h2>⚡ 성능 모니터</h2>
+          <PerformanceMonitor v-if="activeTab === 'performance'" />
+        </div>
+
+        <!-- WebSocket 탭 (WebSocketBridge) -->
+        <div v-if="activeTab === 'websocket'" class="tab-content">
+          <h2>🔌 WebSocket 브리지</h2>
+          <WebSocketBridge v-if="activeTab === 'websocket'" />
         </div>
       </section>
     </main>
@@ -324,25 +294,38 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
-import OllamaModelDownloader from './components/OllamaModelDownloader.vue';
-import KnowledgeGraphVisualizer from './components/KnowledgeGraphVisualizer.vue';
+import { ref, computed, onMounted, onUnmounted, defineAsyncComponent } from 'vue';
+
+// Core components (always loaded)
 import AgentCommandPanel from './components/AgentCommandPanel.vue';
-import DiscordSetupWizard from './components/DiscordSetupWizard.vue';
-import StatusDashboard from './components/StatusDashboard.vue';
-import LogViewer from './components/LogViewer.vue';
-import ConfigurationPanel from './components/ConfigurationPanel.vue';
-import NotificationCenter from './components/NotificationCenter.vue';
-import AnalyticsDashboard from './components/AnalyticsDashboard.vue';
-import SystemHealthMonitor from './components/SystemHealthMonitor.vue';
+import TaskCreationForm from './components/TaskCreationForm.vue';
+
+// Async components (lazy loaded by tab)
+const OllamaModelDownloader = defineAsyncComponent(() => import('./components/OllamaModelDownloader.vue'));
+const KnowledgeGraphVisualizer = defineAsyncComponent(() => import('./components/KnowledgeGraphVisualizer.vue'));
+const DiscordSetupWizard = defineAsyncComponent(() => import('./components/DiscordSetupWizard.vue'));
+const StatusDashboard = defineAsyncComponent(() => import('./components/StatusDashboard.vue'));
+const LogViewer = defineAsyncComponent(() => import('./components/LogViewer.vue'));
+const ConfigurationPanel = defineAsyncComponent(() => import('./components/ConfigurationPanel.vue'));
+const NotificationCenter = defineAsyncComponent(() => import('./components/NotificationCenter.vue'));
+const AnalyticsDashboard = defineAsyncComponent(() => import('./components/AnalyticsDashboard.vue'));
+const SystemHealthMonitor = defineAsyncComponent(() => import('./components/SystemHealthMonitor.vue'));
+const SpeechRecognitionPanel = defineAsyncComponent(() => import('./components/SpeechRecognitionPanel.vue'));
+const ConstitutionViewer = defineAsyncComponent(() => import('./components/ConstitutionViewer.vue'));
+const ReportLoader = defineAsyncComponent(() => import('./components/ReportLoader.vue'));
+const AgentDashboard = defineAsyncComponent(() => import('./components/AgentDashboard.vue'));
+const AgentStatusMonitor = defineAsyncComponent(() => import('./components/AgentStatusMonitor.vue'));
+const RealTimeDashboard = defineAsyncComponent(() => import('./components/RealTimeDashboard.vue'));
+const SystemMetricsGraphs = defineAsyncComponent(() => import('./components/SystemMetricsGraphs.vue'));
+const SearchInterface = defineAsyncComponent(() => import('./components/SearchInterface.vue'));
+const OllamaModelManager = defineAsyncComponent(() => import('./components/OllamaModelManager.vue'));
+const PerformanceMonitor = defineAsyncComponent(() => import('./components/PerformanceMonitor.vue'));
+const WebSocketBridge = defineAsyncComponent(() => import('./components/WebSocketBridge.vue'));
 
 // 상태 정의
 const activeTab = ref('constitution');
-const constitution = ref(null);
-const latestReport = ref(null);
 const currentTime = ref('');
 const systemStatus = ref('operational');
-const selectedAgent = ref(null);
 const tasks = ref([]);
 
 // Knowledge Graph 샘플 데이터
@@ -374,14 +357,6 @@ const executionLogs = ref([
   { timestamp: new Date(Date.now() - 60000).toLocaleString('ko-KR'), message: '🔄 15사도 풀 로드 완료' },
   { timestamp: new Date(Date.now() - 120000).toLocaleString('ko-KR'), message: '✅ IPC 파이프라인 연결 확인' }
 ]);
-
-const newTask = ref({
-  title: '',
-  description: '',
-  assignee: '',
-  priority: 'medium',
-  deadline: ''
-});
 
 // Scope 1: 15사도 풀 로드 (Complete Agent Roster)
 const agents = ref([
@@ -416,46 +391,13 @@ const updateTime = () => {
 const initializeMetricsTracking = () => {
   metricsIntervalId = setInterval(() => {
     agents.value.forEach(agent => {
-      agent.responseTime = Math.max(35, agent.responseTime + (Math.random() - 0.5) * 20);
+      const newResponseTime = Math.max(35, agent.responseTime + (Math.random() - 0.5) * 20);
+      agent.responseTime = Number(newResponseTime.toFixed(1));
       agent.activeTasksCount = Math.max(0, Math.min(10, agent.activeTasksCount + Math.floor(Math.random() * 3) - 1));
-      agent.uptime = Math.min(99.99, agent.uptime + (Math.random() * 0.05));
+      const newUptime = Math.min(99.99, agent.uptime + (Math.random() * 0.05));
+      agent.uptime = Number(newUptime.toFixed(2));
     });
-  }, 5000);
-};
-
-const selectAgent = (agent) => {
-  selectedAgent.value = agent;
-};
-
-// Scope 2: 작업 명령 UI 통합
-const createTask = () => {
-  if (!newTask.value.title || !newTask.value.assignee) {
-    alert('제목과 담당자는 필수입니다.');
-    return;
-  }
-
-  const task = {
-    id: Date.now(),
-    title: newTask.value.title,
-    description: newTask.value.description,
-    assignee: parseInt(newTask.value.assignee),
-    priority: newTask.value.priority,
-    deadline: newTask.value.deadline,
-    status: 'pending',
-    createdAt: new Date().toLocaleString('ko-KR')
-  };
-
-  tasks.value.push(task);
-  addExecutionLog(`✅ 작업 생성: "${task.title}" - 담당자: ${getAgentName(task.assignee)}`);
-  executeTaskViaIPC(task);
-
-  newTask.value = {
-    title: '',
-    description: '',
-    assignee: '',
-    priority: 'medium',
-    deadline: ''
-  };
+  }, 10000);
 };
 
 // Scope 3: IPC 파이프라인 통합
@@ -490,6 +432,23 @@ const removeTask = (index) => {
   addExecutionLog(`🗑️ 작업 삭제: "${task.title}"`);
 };
 
+// TaskCreationForm(task-created) 이벤트 → 작업 리스트 반영 + IPC 집행
+const onTaskCreated = (taskData) => {
+  const task = {
+    id: taskData.id || Date.now(),
+    title: taskData.title,
+    description: taskData.description || '',
+    assignee: taskData.assignee,
+    priority: taskData.priority || 'medium',
+    deadline: taskData.deadline || taskData.dueDate || '',
+    status: taskData.status || 'pending',
+    createdAt: taskData.createdAt || new Date().toLocaleString('ko-KR')
+  };
+  tasks.value.push(task);
+  addExecutionLog(`✅ 작업 생성(TaskCreationForm): "${task.title}"`);
+  executeTaskViaIPC(task);
+};
+
 const getAgentName = (agentId) => {
   const agent = agents.value.find(a => a.id === parseInt(agentId));
   return agent ? agent.name : '미할당';
@@ -504,42 +463,11 @@ const getProgressPercentage = (status) => {
   return percentages[status] || 0;
 };
 
-const assignTaskToAgent = (agent) => {
-  activeTab.value = 'tasks';
-  newTask.value.assignee = agent.id.toString();
-};
-
-const refreshAgentStatus = async (agent) => {
-  try {
-    addExecutionLog(`🔄 상태 갱신 대기: ${agent.name}`);
-  } catch (err) {
-    addExecutionLog(`⚠️ 상태 조회 실패: ${err.message}`);
-  }
-};
-
 const addExecutionLog = (message) => {
   const timestamp = new Date().toLocaleString('ko-KR');
   executionLogs.value.unshift({ timestamp, message });
   if (executionLogs.value.length > 50) {
     executionLogs.value.pop();
-  }
-};
-
-const loadConstitution = async () => {
-  try {
-    constitution.value = await window.electronAPI.getConstitution();
-  } catch (err) {
-    constitution.value = `Error loading constitution: ${err}`;
-  }
-};
-
-const loadLatestReport = async () => {
-  try {
-    if (window.electronAPI && window.electronAPI.getLatestReport) {
-      latestReport.value = await window.electronAPI.getLatestReport();
-    }
-  } catch (err) {
-    latestReport.value = `Error loading report: ${err}`;
   }
 };
 
@@ -576,6 +504,53 @@ onUnmounted(() => {
 });
 </script>
 
+<style>
+/* Global CSS Variables */
+:root {
+  --color-bg-primary: #060810;
+  --color-bg-secondary: #0d101e;
+  --color-bg-dark: #04050a;
+  --color-text-primary: #f8fafc;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted: #64748b;
+  --color-accent-text: #dfc399;
+  --color-accent: linear-gradient(135deg, #dfc399 0%, #c5a880 50%, #a88d67 100%);
+  --color-accent-hover: #c5a880;
+  --color-accent-dark: #a88d67;
+  --color-success: #10b981;
+  --color-error: #ef4444;
+  --color-warning: #f59e0b;
+  --color-border: rgba(223, 195, 153, 0.15);
+  --glass-bg: rgba(13, 16, 30, 0.75);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Custom Sleek Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-accent-dark);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-accent-hover);
+}
+</style>
+
 <style scoped>
 * {
   margin: 0;
@@ -587,48 +562,62 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #0a0e27;
-  color: #e0e6ed;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: radial-gradient(circle at top right, #0f1222 0%, var(--color-bg-primary) 75%);
+  color: var(--color-text-primary);
+  font-family: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  overflow: hidden;
 }
 
 .nexus-header {
-  background: linear-gradient(135deg, #1a1f3a 0%, #0d1117 100%);
-  padding: 20px 30px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 16px 30px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 2px solid #0369a1;
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: var(--glass-shadow);
+  z-index: 10;
 }
 
 .header-title h1 {
-  font-size: 28px;
-  color: #0ea5e9;
-  margin-bottom: 5px;
+  font-size: 24px;
+  font-weight: 700;
+  background: var(--color-accent);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.5px;
+  margin-bottom: 2px;
+  display: inline-block;
 }
 
 .header-title p {
-  font-size: 12px;
-  color: #64748b;
+  font-size: 11px;
+  color: var(--color-text-secondary);
 }
 
 .header-status {
   display: flex;
-  gap: 20px;
+  gap: 16px;
   align-items: center;
 }
 
 .status-badge {
-  padding: 6px 12px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: bold;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
 
 .status-badge.operational,
 .status-badge.active {
-  background: #10b981;
-  color: #fff;
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--color-success);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.1);
 }
 
 .nexus-main {
@@ -638,33 +627,46 @@ onUnmounted(() => {
 }
 
 .sidebar {
-  width: 200px;
-  background: #0f172a;
-  border-right: 1px solid #1e293b;
-  padding: 20px 0;
+  width: 210px;
+  background: var(--color-bg-dark);
+  border-right: 1px solid var(--color-border);
+  padding: 15px 0;
   overflow-y: auto;
 }
 
 .nav-menu {
   list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 8px;
 }
 
 .nav-menu li {
-  padding: 12px 20px;
+  padding: 10px 16px;
   cursor: pointer;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  gap: 10px;
   border-left: 3px solid transparent;
-  transition: all 0.2s;
 }
 
 .nav-menu li:hover {
-  background: #1e293b;
-  border-left-color: #0ea5e9;
+  background: rgba(223, 195, 153, 0.06);
+  color: var(--color-accent-text);
 }
 
 .nav-menu li.active {
-  background: #1e293b;
-  border-left-color: #0ea5e9;
-  color: #0ea5e9;
+  background: rgba(223, 195, 153, 0.12);
+  color: var(--color-accent-text);
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px var(--color-border);
+  border-left: 3px solid var(--color-accent-hover);
 }
 
 .content {
@@ -679,25 +681,30 @@ onUnmounted(() => {
 
 .tab-content h2 {
   margin-bottom: 20px;
-  color: #0ea5e9;
+  font-size: 22px;
+  font-weight: 700;
+  background: var(--color-accent);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: inline-block;
 }
 
 .constitution-viewer, .report-viewer, .log-viewer {
-  background: #1e293b;
-  border: 1px solid #334155;
+  background: #2d2d2d;
+  border: 1px solid #404040;
   border-radius: 8px;
   padding: 15px;
 }
 
 .memory-section {
-  background: #1e293b;
-  border: 1px solid #334155;
+  background: #2d2d2d;
+  border: 1px solid #404040;
   border-radius: 8px;
   padding: 20px;
 }
 
 .btn-primary {
-  background: #0369a1;
+  background: #b8921a;
   color: white;
   border: none;
   padding: 10px 20px;
@@ -709,7 +716,7 @@ onUnmounted(() => {
 }
 
 .btn-primary:hover {
-  background: #0284c7;
+  background: #c99f2d;
 }
 
 .btn-secondary {
@@ -726,11 +733,11 @@ onUnmounted(() => {
 }
 
 .btn-secondary:hover {
-  background: #64748b;
+  background: #a0a0a0;
 }
 
 .btn-small {
-  background: #0369a1;
+  background: #b8921a;
   color: white;
   border: none;
   padding: 6px 12px;
@@ -743,7 +750,7 @@ onUnmounted(() => {
 }
 
 .btn-small:hover {
-  background: #0284c7;
+  background: #c99f2d;
 }
 
 .btn-small.btn-danger {
@@ -755,7 +762,7 @@ onUnmounted(() => {
 }
 
 .content-box {
-  background: #0f172a;
+  background: #1a1a1a;
   padding: 15px;
   border-radius: 4px;
   max-height: 500px;
@@ -767,7 +774,7 @@ onUnmounted(() => {
 }
 
 .placeholder {
-  color: #64748b;
+  color: #a0a0a0;
   font-style: italic;
   padding: 20px;
   text-align: center;
@@ -787,8 +794,8 @@ onUnmounted(() => {
 }
 
 .agent-card {
-  background: #1e293b;
-  border: 2px solid #334155;
+  background: #2d2d2d;
+  border: 2px solid #404040;
   border-radius: 8px;
   padding: 15px;
   cursor: pointer;
@@ -796,14 +803,14 @@ onUnmounted(() => {
 }
 
 .agent-card:hover {
-  border-color: #0ea5e9;
-  background: #263548;
+  border-color: #d4af37;
+  background: #353535;
   transform: translateY(-2px);
 }
 
 .agent-card.selected {
-  border-color: #0ea5e9;
-  background: #263548;
+  border-color: #d4af37;
+  background: #353535;
   box-shadow: 0 0 15px rgba(14, 165, 233, 0.3);
 }
 
@@ -815,7 +822,7 @@ onUnmounted(() => {
 }
 
 .agent-card h3 {
-  color: #0ea5e9;
+  color: #d4af37;
   font-size: 14px;
   margin: 0;
 }
@@ -835,7 +842,7 @@ onUnmounted(() => {
 }
 
 .metric {
-  background: #0f172a;
+  background: #1a1a1a;
   padding: 8px;
   border-radius: 4px;
   text-align: center;
@@ -844,13 +851,13 @@ onUnmounted(() => {
 
 .metric .label {
   display: block;
-  color: #64748b;
+  color: #a0a0a0;
   margin-bottom: 4px;
 }
 
 .metric .value {
   display: block;
-  color: #0ea5e9;
+  color: #d4af37;
   font-weight: bold;
   font-size: 12px;
 }
@@ -858,15 +865,15 @@ onUnmounted(() => {
 /* Scope 4: Agent Detail Panel */
 .agent-detail-panel {
   width: 300px;
-  background: #1e293b;
-  border: 1px solid #334155;
+  background: #2d2d2d;
+  border: 1px solid #404040;
   border-radius: 8px;
   padding: 20px;
   margin-left: 20px;
 }
 
 .agent-detail-panel h3 {
-  color: #0ea5e9;
+  color: #d4af37;
   margin-bottom: 15px;
   font-size: 16px;
 }
@@ -874,11 +881,11 @@ onUnmounted(() => {
 .detail-content p {
   margin-bottom: 10px;
   font-size: 13px;
-  color: #e0e6ed;
+  color: #f5f5f5;
 }
 
 .detail-content strong {
-  color: #0ea5e9;
+  color: #d4af37;
 }
 
 .detail-actions {
@@ -896,14 +903,14 @@ onUnmounted(() => {
 }
 
 .task-form {
-  background: #1e293b;
-  border: 1px solid #334155;
+  background: #2d2d2d;
+  border: 1px solid #404040;
   border-radius: 8px;
   padding: 20px;
 }
 
 .task-form h3 {
-  color: #0ea5e9;
+  color: #d4af37;
   margin-bottom: 15px;
 }
 
@@ -924,10 +931,10 @@ onUnmounted(() => {
 .form-group select {
   width: 100%;
   padding: 8px 12px;
-  background: #0f172a;
-  border: 1px solid #334155;
+  background: #1a1a1a;
+  border: 1px solid #404040;
   border-radius: 4px;
-  color: #e0e6ed;
+  color: #f5f5f5;
   font-family: inherit;
   font-size: 13px;
 }
@@ -936,7 +943,7 @@ onUnmounted(() => {
 .form-group textarea:focus,
 .form-group select:focus {
   outline: none;
-  border-color: #0ea5e9;
+  border-color: #d4af37;
   box-shadow: 0 0 5px rgba(14, 165, 233, 0.2);
 }
 
@@ -996,20 +1003,20 @@ onUnmounted(() => {
 
 /* Scope 3: Task List (IPC Integration) */
 .task-list {
-  background: #1e293b;
-  border: 1px solid #334155;
+  background: #2d2d2d;
+  border: 1px solid #404040;
   border-radius: 8px;
   padding: 20px;
 }
 
 .task-list h3 {
-  color: #0ea5e9;
+  color: #d4af37;
   margin-bottom: 15px;
 }
 
 .task-item {
-  background: #0f172a;
-  border: 1px solid #334155;
+  background: #1a1a1a;
+  border: 1px solid #404040;
   border-radius: 6px;
   padding: 15px;
   margin-bottom: 12px;
@@ -1023,7 +1030,7 @@ onUnmounted(() => {
 }
 
 .task-header h4 {
-  color: #e0e6ed;
+  color: #f5f5f5;
   font-size: 14px;
   margin: 0;
 }
@@ -1070,7 +1077,7 @@ onUnmounted(() => {
 
 .task-progress {
   height: 6px;
-  background: #334155;
+  background: #404040;
   border-radius: 3px;
   margin-bottom: 10px;
   overflow: hidden;
@@ -1078,7 +1085,7 @@ onUnmounted(() => {
 
 .progress-bar {
   height: 100%;
-  background: linear-gradient(90deg, #0ea5e9, #06b6d4);
+  background: linear-gradient(90deg, #d4af37, #06b6d4);
   transition: width 0.3s;
 }
 
@@ -1089,8 +1096,8 @@ onUnmounted(() => {
 
 /* Logs */
 .log-viewer {
-  background: #1e293b;
-  border: 1px solid #334155;
+  background: #2d2d2d;
+  border: 1px solid #404040;
   border-radius: 8px;
   padding: 15px;
   max-height: 600px;
@@ -1099,7 +1106,7 @@ onUnmounted(() => {
 
 .log-entry {
   padding: 10px;
-  border-bottom: 1px solid #334155;
+  border-bottom: 1px solid #404040;
   display: flex;
   gap: 15px;
   font-size: 13px;
@@ -1110,23 +1117,23 @@ onUnmounted(() => {
 }
 
 .log-entry .timestamp {
-  color: #64748b;
+  color: #a0a0a0;
   min-width: 140px;
   font-size: 12px;
 }
 
 .log-entry .message {
-  color: #e0e6ed;
+  color: #f5f5f5;
   flex: 1;
 }
 
 .nexus-footer {
-  background: #0f172a;
-  border-top: 1px solid #1e293b;
+  background: #1a1a1a;
+  border-top: 1px solid #2d2d2d;
   padding: 15px 30px;
   text-align: center;
   font-size: 12px;
-  color: #64748b;
+  color: #a0a0a0;
 }
 
 @keyframes fadeIn {

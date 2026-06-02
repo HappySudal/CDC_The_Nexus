@@ -18,6 +18,16 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    chunkSizeWarningLimit: 500,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor': ['vue', 'axios', 'discord.js'],
+          'charts': ['cytoscape'],
+          'components': ['./src/components/']
+        },
+      }
+    }
   },
 })
 
