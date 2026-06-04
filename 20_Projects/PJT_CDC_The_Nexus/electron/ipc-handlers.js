@@ -1,4 +1,5 @@
-﻿/**
+import { devLog } from './logger.js';
+/**
  * Electron IPC Handler Implementation
  *
  * Project Nexus Phase 2: Complete handler implementations for IPC channels
@@ -12,16 +13,32 @@ import { execSync } from 'child_process';
 import { IpcChannels, ResponseFormats, IpcEventBatcher, IpcHandler } from './ipc-channels.js';
 import { ollamaManager } from './ollama-manager.js';
 import { ApprovalGate } from './approval-gate.js';
-import { APOSTLE_REGISTRY } from './apostle-registry.js';
+import { APOSTLE_REGISTRY, findApostle } from './apostle-registry.js';
 import { OpenClaudeClient } from './openclaude-client.js';
 
 /**
- * Initialize all IPC handlers for Phase 2 features
+ * 토큰에서 사도 정보 추출
+ * @param {string} token - 승인 토큰
+ * @param {ApprovalGate} gate - ApprovalGate 인스턴스
+ * @returns {object|null} 사도 정보 또는 null
+ */
+function getApostleFromToken(token, gate) {
+  const tokenInfo = gate.getTokenInfo(token);
+  if (!tokenInfo || !tokenInfo.requestor) return null;
+
+  // requestor는 'apostle-1', 'apostle-2' 형식
+  const apostleInfo = findApostle(tokenInfo.requestor);
+  return apostleInfo ? { ...apostleInfo, id: tokenInfo.requestor } : null;
+}
+
+/**
+ * Initialize all IPC handlers for Phase 2-4 features
  * @param {AgentManager} agents - LLM-backed agent manager (optional)
  * @param {KnowledgeGraph} graph - Knowledge graph instance (optional)
  * @param {DiscordBridge} discord - Discord bridge instance (optional)
+ * @param {VoicePipeline} voicePipeline - Voice pipeline for STT/TTS (Phase 4-Extended, optional)
  */
-export function initializeIpcHandlers(agents, graph, discord) {
+export function initializeIpcHandlers(agents, graph, discord, voicePipeline) {
   const handler = new IpcHandler(ipcMain, 5000);
   const eventBatcher = new IpcEventBatcher(20, 1000);
 
@@ -98,7 +115,110 @@ export function initializeIpcHandlers(agents, graph, discord) {
   });
 
   // =====================================================
-  // 2. SEARCH & FILTERING
+  // 2. OPENCLAUDE INTEGRATION (OpenClaude API @ localhost:4000)
+  // =====================================================
+  // 의장/13사도의 토큰을 받아 OpenClaude API 호출
+  const openClaudeClient = new OpenClaudeClient();
+
+  // 2-a. API 호출 (일반 요청)
+  handler.handle('openclaude:call', async (event, { endpoint, token, payload } = {}) => {
+    try {
+      // 토큰이 유효한지 확인
+      if (!constitutionGate.verify(token)) {
+        throw new Error('Unauthorized: invalid or expired approval token');
+      }
+
+      const apostleInfo = getApostleFromToken(token, constitutionGate);
+      if (!apostleInfo) {
+        throw new Error('Unauthorized: apostle not found');
+      }
+
+      // 사도의 권한 확인
+      if (!apostleInfo.scopes.includes('execute:llm')) {
+        throw new Error('Forbidden: insufficient scopes for OpenClaude API');
+      }
+
+      // 토큰을 OpenClaudeClient에 설정
+      const tokenInfo = constitutionGate.getTokenInfo(token);
+      openClaudeClient.setToken(token, tokenInfo.expiresAt);
+
+      // API 호출 실행
+      const result = await openClaudeClient.call(endpoint, { ...payload, apostle: apostleInfo.name });
+      return result;
+    } catch (error) {
+      console.error('OpenClaude API error:', error);
+      throw error;
+    }
+  });
+
+  // 2-b. 스트리밍 API 호출 (SSE)
+  handler.handle('openclaude:stream', async (event, { endpoint, token, payload } = {}) => {
+    try {
+      if (!constitutionGate.verify(token)) {
+        throw new Error('Unauthorized: invalid or expired approval token');
+      }
+
+      const apostleInfo = getApostleFromToken(token, constitutionGate);
+      if (!apostleInfo || !apostleInfo.scopes.includes('execute:llm')) {
+        throw new Error('Forbidden: insufficient scopes for OpenClaude streaming');
+      }
+
+      const tokenInfo = constitutionGate.getTokenInfo(token);
+      openClaudeClient.setToken(token, tokenInfo.expiresAt);
+
+      // 스트리밍 콜백 설정
+      await openClaudeClient.stream(endpoint, payload,
+        (chunk) => event.reply('openclaude:stream-chunk', { chunk, apostle: apostleInfo.name }),
+        (error) => event.reply('openclaude:stream-error', { error: error.message })
+      );
+
+      return { streaming: true };
+    } catch (error) {
+      console.error('OpenClaude streaming error:', error);
+      throw error;
+    }
+  });
+
+  // 2-c. 토큰 갱신 (자동 또는 수동)
+  handler.handle('openclaude:refresh-token', async (event, { token, force = false } = {}) => {
+    try {
+      const tokenInfo = constitutionGate.getTokenInfo(token);
+      if (!tokenInfo) {
+        throw new Error('Token not found');
+      }
+
+      // OpenClaudeClient에서 토큰 갱신 요청
+      const newToken = await openClaudeClient._requestTokenRefresh(force);
+      
+      // 새 토큰을 ApprovalGate에 등록
+      const refreshedToken = constitutionGate.approve(token, tokenInfo.scopes);
+      
+      return { token: refreshedToken, expiresAt: new Date(Date.now() + 3600000) };
+    } catch (error) {
+      console.error('Token refresh error:', error);
+      throw error;
+    }
+  });
+
+  // 2-d. 토큰 정보 조회 (의장 대시보드)
+  handler.handle('openclaude:get-token-info', async (event, { token } = {}) => {
+    const tokenInfo = constitutionGate.getTokenInfo(token);
+    if (!tokenInfo) {
+      throw new Error('Token not found');
+    }
+
+    return {
+      requestor: tokenInfo.requestor,
+      scopes: tokenInfo.scopes,
+      expiresAt: tokenInfo.expiresAt,
+      createdAt: tokenInfo.createdAt,
+      apostleId: `apostle-${tokenInfo.apostleId || '?'}`,
+      masked: `${token.substring(0, 16)}...` // 마스킹된 토큰
+    };
+  });
+
+  // =====================================================
+  // 5. SEARCH & FILTERING
   // =====================================================
   handler.handle(IpcChannels.SEARCH.SEARCH_DOCUMENTS, async (event, { query, filters }) => {
     const scriptPath = path.join(
@@ -118,7 +238,7 @@ export function initializeIpcHandlers(agents, graph, discord) {
   });
 
   // =====================================================
-  // 3. AGENT MONITORING (LLM-Backed)
+  // 4. AGENT MONITORING (LLM-Backed)
   // =====================================================
   handler.handle(IpcChannels.AGENT.GET_AGENTS, async (event) => {
     // Return LLM-backed agent status
@@ -181,7 +301,7 @@ export function initializeIpcHandlers(agents, graph, discord) {
           throw new Error(`Unknown agent ID: ${agentId}`);
         }
 
-        console.log(`[Agent ${agentId}] Executing: ${command}`);
+        devLog(`[Agent ${agentId}] Executing: ${command}`);
         const result = await agents.executeAgentCommand(agentName, command);
 
         return {
@@ -229,7 +349,7 @@ export function initializeIpcHandlers(agents, graph, discord) {
     };
 
     // In production: save to database/file system
-    console.log('Task created:', task.id);
+    devLog('Task created:', task.id);
 
     return task;
   });
@@ -395,7 +515,7 @@ export function initializeIpcHandlers(agents, graph, discord) {
 
   handler.handle(IpcChannels.SETTINGS.SAVE_SETTINGS, async (event, { settings }) => {
     // Save to file or database
-    console.log('Settings saved:', settings);
+    devLog('Settings saved:', settings);
     return { success: true, timestamp: new Date().toISOString() };
   });
 
@@ -416,17 +536,17 @@ export function initializeIpcHandlers(agents, graph, discord) {
   // 10. ADMIN FUNCTIONS
   // =====================================================
   handler.handle(IpcChannels.ADMIN.START_MONITORING, async (event) => {
-    console.log('Monitoring started');
+    devLog('Monitoring started');
     return { status: 'started', timestamp: new Date().toISOString() };
   });
 
   handler.handle(IpcChannels.ADMIN.TRIGGER_BACKUP, async (event) => {
-    console.log('Backup triggered');
+    devLog('Backup triggered');
     return { status: 'running', timestamp: new Date().toISOString() };
   });
 
   handler.handle(IpcChannels.ADMIN.TRIGGER_SYNC, async (event) => {
-    console.log('Sync triggered');
+    devLog('Sync triggered');
     return { status: 'syncing', timestamp: new Date().toISOString() };
   });
 
@@ -500,8 +620,8 @@ export function initializeIpcHandlers(agents, graph, discord) {
 
   // Discord Command Routing (Phase C Control Interface)
   handler.handle('discord:execute-npm-script', async (event, { projectName, script, userId, guildId }) => {
-    const { execSync } = require('child_process');
-    const { PROJECT_REGISTRY } = require('../20_Projects/PJT_CDC_The_Nexus/electron/discord-bridge');
+    // execSync는 파일 상단의 import에서 이미 로드됨
+    // PROJECT_REGISTRY는 discord-bridge에서 export해야 함
 
     if (!PROJECT_REGISTRY[projectName]) {
       return {
@@ -587,7 +707,7 @@ export function initializeIpcHandlers(agents, graph, discord) {
   });
 
   handler.handle('discord:get-project-registry', async (event) => {
-    const { PROJECT_REGISTRY } = require('../20_Projects/PJT_CDC_The_Nexus/electron/discord-bridge');
+    // PROJECT_REGISTRY는 discord-bridge에서 export해야 함
     return Object.entries(PROJECT_REGISTRY).map(([name, info]) => ({
       name,
       description: info.description,
@@ -635,7 +755,7 @@ export function initializeIpcHandlers(agents, graph, discord) {
     if (!model) throw new Error('Model name is required');
 
     try {
-      console.log(`[IPC] Starting download for model: ${model}`);
+      devLog(`[IPC] Starting download for model: ${model}`);
 
       // Poll Ollama API for progress (simulated)
       const startTime = Date.now();
@@ -801,6 +921,118 @@ export function initializeIpcHandlers(agents, graph, discord) {
     }));
   });
 
+  // =====================================================
+  // 14. VOICE PIPELINE (Phase 4-Extended)
+  // =====================================================
+  handler.handle('voice:process-audio', async (event, { audioBuffer, userId, language }) => {
+    if (!voicePipeline) {
+      throw new Error('Voice pipeline not initialized');
+    }
+
+    try {
+      const result = await voicePipeline.handleVoiceInput({
+        buffer: Buffer.from(audioBuffer),
+        userId: userId || 'anonymous',
+        language: language || 'ko-KR',
+      });
+
+      return {
+        success: result.success,
+        userText: result.userText,
+        userIntent: result.userIntent,
+        responseText: result.responseText,
+        responseAudio: result.responseAudio ? result.responseAudio.toString('base64') : null,
+        model: result.llmModel,
+        processingTime: result.processingTime,
+        error: result.error || null,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  });
+
+  handler.handle('voice:get-status', async (event) => {
+    if (!voicePipeline) {
+      throw new Error('Voice pipeline not initialized');
+    }
+
+    return voicePipeline.getStatus();
+  });
+
+  handler.handle('voice:get-metrics', async (event) => {
+    if (!voicePipeline) {
+      throw new Error('Voice pipeline not initialized');
+    }
+
+    return voicePipeline.getMetrics();
+  });
+
+  handler.handle('voice:get-history', async (event) => {
+    if (!voicePipeline) {
+      throw new Error('Voice pipeline not initialized');
+    }
+
+    return voicePipeline.getConversationHistory();
+  });
+
+  handler.handle('voice:clear-history', async (event) => {
+    if (!voicePipeline) {
+      throw new Error('Voice pipeline not initialized');
+    }
+
+    voicePipeline.clearConversationHistory();
+    return { success: true, timestamp: new Date().toISOString() };
+  });
+
+  handler.handle('voice:update-config', async (event, { config }) => {
+    if (!voicePipeline) {
+      throw new Error('Voice pipeline not initialized');
+    }
+
+    voicePipeline.updateConfig(config);
+    return { success: true, newConfig: voicePipeline.config };
+  });
+
+  // =====================================================
+  // Voice Pipeline — Process Transcribed Text (from renderer STT)
+  // =====================================================
+  handler.handle('voice:process-transcribed-text', async (event, { text, userId, language }) => {
+    if (!voicePipeline) {
+      throw new Error('Voice pipeline not initialized');
+    }
+
+    try {
+      const result = await voicePipeline.handleTranscribedText({
+        text: text || '',
+        userId: userId || 'anonymous',
+        language: language || 'ko-KR',
+        timestamp: new Date().toISOString(),
+      });
+
+      return {
+        success: result.success !== false,
+        userText: text,
+        userIntent: result.intent || null,
+        responseText: result.responseText || '',
+        responseAudio: result.responseAudio ? result.responseAudio.toString('base64') : null,
+        model: result.llmModel || 'openclaude',
+        processingTime: result.processingTime || 0,
+        error: result.error || null,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        userText: text,
+        error: error.message || 'Unknown error',
+        timestamp: new Date().toISOString(),
+      };
+    }
+  });
+
   return { handler, eventBatcher, setupRealtimeUpdates };
 }
 
@@ -822,6 +1054,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   requestConstitutionAccess: (requestor) => ipcRenderer.invoke('constitution:request', { requestor }),
   approveConstitutionAccess: (requestId) => ipcRenderer.invoke('constitution:approve', { requestId }),
   onConstitutionUpdate: (callback) => ipcRenderer.on('constitution:changed', callback),
+
+  // OpenClaude (token-gated via ApprovalGate)
+  openClaudeCall: (endpoint, token, payload) => ipcRenderer.invoke('openclaude:call', { endpoint, token, payload }),
+  openClaudeStream: (endpoint, token, payload) => ipcRenderer.invoke('openclaude:stream', { endpoint, token, payload }),
+  refreshOpenClaudeToken: (token, force) => ipcRenderer.invoke('openclaude:refresh-token', { token, force }),
+  getOpenClaudeTokenInfo: (token) => ipcRenderer.invoke('openclaude:get-token-info', { token }),
+  onOpenClaudeStreamChunk: (callback) => ipcRenderer.on('openclaude:stream-chunk', callback),
+  onOpenClaudeStreamError: (callback) => ipcRenderer.on('openclaude:stream-error', callback),
 
   // Search
   searchDocuments: (query, filters) => ipcRenderer.invoke('search:documents', { query, filters }),
@@ -870,6 +1110,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   sendDiscordMessage: (content, options) => ipcRenderer.invoke('discord:send', { content, options }),
   getDiscordStatus: () => ipcRenderer.invoke('discord:status'),
   configureDiscord: (config) => ipcRenderer.invoke('discord:configure', config),
+
+  // Voice Pipeline (Phase 4)
+  processTranscribedText: (text, userId, language) => ipcRenderer.invoke('voice:process-transcribed-text', { text, userId, language }),
+  processAudio: (audioBuffer, userId, language) => ipcRenderer.invoke('voice:process-audio', { audioBuffer, userId, language }),
+  getVoiceStatus: () => ipcRenderer.invoke('voice:get-status'),
+  getVoiceMetrics: () => ipcRenderer.invoke('voice:get-metrics'),
+  getVoiceHistory: () => ipcRenderer.invoke('voice:get-history'),
+  clearVoiceHistory: () => ipcRenderer.invoke('voice:clear-history'),
+  updateVoiceConfig: (config) => ipcRenderer.invoke('voice:update-config', { config }),
+  onVoiceInteractionComplete: (callback) => ipcRenderer.on('voice:interaction-complete', callback),
+  onVoiceInteractionError: (callback) => ipcRenderer.on('voice:interaction-error', callback),
 
   // Real-time subscriptions
   onActivityLog: (callback) => ipcRenderer.on('realtime:activity-log', callback),
