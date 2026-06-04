@@ -14,8 +14,11 @@
     <main class="nexus-main">
       <nav class="sidebar">
         <ul class="nav-menu">
+          <li @click="activeTab = 'cdcdashboard'" :class="{ active: activeTab === 'cdcdashboard' }">
+            CDC 대시보드
+          </li>
           <li @click="activeTab = 'constitution'" :class="{ active: activeTab === 'constitution' }">
-            CDC
+            사령부 헌법
           </li>
           <li @click="activeTab = 'llmdashboard'" :class="{ active: activeTab === 'llmdashboard' }">
             멀티 LLM
@@ -90,6 +93,22 @@
       </nav>
 
       <section class="content">
+        <!-- CDC 대시보드 탭 (iframe으로 Next.js 앱 로드) -->
+        <div v-if="activeTab === 'cdcdashboard'" class="tab-content">
+          <h2>CDC 대시보드</h2>
+          <div class="cdc-dashboard-container">
+            <iframe
+              src="http://localhost:3333"
+              class="cdc-dashboard-iframe"
+              title="CDC 대시보드"
+              @load="cdcDashboardLoaded = true"
+            ></iframe>
+            <div v-if="!cdcDashboardLoaded" class="loading-spinner">
+              CDC 대시보드 로딩 중...
+            </div>
+          </div>
+        </div>
+
         <!-- 헌법 탭 (ConstitutionViewer 실 컴포넌트) -->
         <div v-if="activeTab === 'constitution'" class="tab-content">
           <h2>📜 사령부 헌법</h2>
@@ -332,10 +351,11 @@ const PerformanceMonitor = defineAsyncComponent(() => import('./components/Perfo
 const WebSocketBridge = defineAsyncComponent(() => import('./components/WebSocketBridge.vue'));
 
 // 상태 정의
-const activeTab = ref('constitution');
+const activeTab = ref('cdcdashboard');
 const currentTime = ref('');
 const systemStatus = ref('operational');
 const tasks = ref([]);
+const cdcDashboardLoaded = ref(false);
 
 // Knowledge Graph 샘플 데이터
 const memoryNodes = ref([
@@ -1199,6 +1219,35 @@ onUnmounted(() => {
     width: 100%;
     margin-left: 0;
   }
+}
+
+/* CDC 대시보드 스타일 */
+.cdc-dashboard-container {
+  position: relative;
+  width: 100%;
+  height: calc(100vh - 200px);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #1a1a1a;
+}
+
+.cdc-dashboard-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #ffffff;
+}
+
+.loading-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--color-accent-text);
+  font-size: 16px;
+  text-align: center;
+  animation: pulse 1.5s ease-in-out infinite;
 }
 </style>
 
