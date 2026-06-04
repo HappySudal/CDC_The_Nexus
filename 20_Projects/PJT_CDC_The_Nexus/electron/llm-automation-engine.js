@@ -11,10 +11,10 @@
  * - 사용자 프로필 저장 (로그인 상태 유지)
  */
 
-const { chromium } = require('playwright');
-const path = require('path');
-const fs = require('fs');
-const os = require('os');
+import { chromium } from 'playwright';
+import path from 'path';
+import fs from 'fs';
+import os from 'os';
 
 class LLMAutomationEngine {
   constructor() {
@@ -559,7 +559,6 @@ class LLMAutomationEngine {
   }
 }
 
-module.exports = LLMAutomationEngine;
 export default LLMAutomationEngine;
 
 // "시각(時刻)에 존재하고, 시간(時間)에 소멸한다."
