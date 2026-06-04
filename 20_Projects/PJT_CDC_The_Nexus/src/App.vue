@@ -15,73 +15,76 @@
       <nav class="sidebar">
         <ul class="nav-menu">
           <li @click="activeTab = 'constitution'" :class="{ active: activeTab === 'constitution' }">
-            📜 헌법
+            CDC
+          </li>
+          <li @click="activeTab = 'llmdashboard'" :class="{ active: activeTab === 'llmdashboard' }">
+            멀티 LLM
           </li>
           <li @click="activeTab = 'reports'" :class="{ active: activeTab === 'reports' }">
-            📊 리포트
+            리포트
           </li>
           <li @click="activeTab = 'memory'" :class="{ active: activeTab === 'memory' }">
-            📊 기억 창고
+            기억 창고
           </li>
           <li @click="activeTab = 'commands'" :class="{ active: activeTab === 'commands' }">
-            🎯 도우미 명령
+            도우미 명령
           </li>
           <li @click="activeTab = 'agents'" :class="{ active: activeTab === 'agents' }">
-            🤖 15사도
+            15사도
           </li>
           <li @click="activeTab = 'tasks'" :class="{ active: activeTab === 'tasks' }">
-            ✅ 작업 관리
+            작업 관리
           </li>
           <li @click="activeTab = 'execution'" :class="{ active: activeTab === 'execution' }">
-            ⚙️ 집행 로그
+            집행 로그
           </li>
           <li @click="activeTab = 'ollama'" :class="{ active: activeTab === 'ollama' }">
-            🤖 모델 관리
+            모델 관리
           </li>
           <li @click="activeTab = 'discord'" :class="{ active: activeTab === 'discord' }">
-            🔗 Discord 연결
+            Discord
           </li>
           <li @click="activeTab = 'voice'" :class="{ active: activeTab === 'voice' }">
-            🎤 음성 대화
+            음성
           </li>
           <li @click="activeTab = 'status'" :class="{ active: activeTab === 'status' }">
-            📊 시스템 상태
+            시스템 상태
           </li>
           <li @click="activeTab = 'logs'" :class="{ active: activeTab === 'logs' }">
-            📋 시스템 로그
+            시스템 로그
           </li>
           <li @click="activeTab = 'config'" :class="{ active: activeTab === 'config' }">
-            ⚙️ 시스템 설정
+            시스템 설정
           </li>
           <li @click="activeTab = 'notifications'" :class="{ active: activeTab === 'notifications' }">
-            🔔 알림 센터
+            알림 센터
           </li>
           <li @click="activeTab = 'analytics'" :class="{ active: activeTab === 'analytics' }">
-            📊 분석 대시보드
+            분석 대시보드
           </li>
           <li @click="activeTab = 'health'" :class="{ active: activeTab === 'health' }">
-            💊 시스템 상태 모니터
+            시스템 상태 모니터
           </li>
           <li @click="activeTab = 'agentMonitor'" :class="{ active: activeTab === 'agentMonitor' }">
-            🛰️ 사도 모니터
+            사도 모니터
           </li>
           <li @click="activeTab = 'realtime'" :class="{ active: activeTab === 'realtime' }">
-            📡 실시간 대시보드
+            실시간 대시보드
           </li>
           <li @click="activeTab = 'metrics'" :class="{ active: activeTab === 'metrics' }">
-            📈 메트릭 그래프
+            메트릭 그래프
           </li>
           <li @click="activeTab = 'search'" :class="{ active: activeTab === 'search' }">
-            🔎 검색
+            검색
           </li>
           <li @click="activeTab = 'ollamaManager'" :class="{ active: activeTab === 'ollamaManager' }">
-            🧠 모델 관리(고급)
+            모델 관리(고급)
           </li>
           <li @click="activeTab = 'performance'" :class="{ active: activeTab === 'performance' }">
-            ⚡ 성능 모니터
+            성능 모니터
           </li>
           <li @click="activeTab = 'websocket'" :class="{ active: activeTab === 'websocket' }">
-            🔌 WebSocket
+            WebSocket
           </li>
         </ul>
       </nav>
@@ -91,6 +94,11 @@
         <div v-if="activeTab === 'constitution'" class="tab-content">
           <h2>📜 사령부 헌법</h2>
           <ConstitutionViewer />
+        </div>
+
+        <!-- 멀티 LLM 대시보드 탭 (LLMDashboard 실 컴포넌트) -->
+        <div v-if="activeTab === 'llmdashboard'" class="tab-content">
+          <LLMDashboard />
         </div>
 
         <!-- 리포트 탭 (ReportLoader 실 컴포넌트) -->
@@ -312,6 +320,7 @@ const AnalyticsDashboard = defineAsyncComponent(() => import('./components/Analy
 const SystemHealthMonitor = defineAsyncComponent(() => import('./components/SystemHealthMonitor.vue'));
 const SpeechRecognitionPanel = defineAsyncComponent(() => import('./components/SpeechRecognitionPanel.vue'));
 const ConstitutionViewer = defineAsyncComponent(() => import('./components/ConstitutionViewer.vue'));
+const LLMDashboard = defineAsyncComponent(() => import('./components/LLMDashboard.vue'));
 const ReportLoader = defineAsyncComponent(() => import('./components/ReportLoader.vue'));
 const AgentDashboard = defineAsyncComponent(() => import('./components/AgentDashboard.vue'));
 const AgentStatusMonitor = defineAsyncComponent(() => import('./components/AgentStatusMonitor.vue'));
@@ -352,10 +361,20 @@ const commandAgents = ref([
   { id: 'openclaude', name: 'OpenClaude', emoji: '🤖', role: '분석 담당자' }
 ]);
 
+const formatTimestamp = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  return `${year}.${month}.${day} ${hours}:${minutes}:${seconds}`;
+};
+
 const executionLogs = ref([
-  { timestamp: new Date().toLocaleString('ko-KR'), message: '✅ The Nexus v0.3.0 초기화 완료' },
-  { timestamp: new Date(Date.now() - 60000).toLocaleString('ko-KR'), message: '🔄 15사도 풀 로드 완료' },
-  { timestamp: new Date(Date.now() - 120000).toLocaleString('ko-KR'), message: '✅ IPC 파이프라인 연결 확인' }
+  { timestamp: formatTimestamp(new Date()), message: '✅ The Nexus v0.3.0 초기화 완료' },
+  { timestamp: formatTimestamp(new Date(Date.now() - 60000)), message: '🔄 15사도 풀 로드 완료' },
+  { timestamp: formatTimestamp(new Date(Date.now() - 120000)), message: '✅ IPC 파이프라인 연결 확인' }
 ]);
 
 // Scope 1: 15사도 풀 로드 (Complete Agent Roster)
@@ -384,7 +403,13 @@ let metricsIntervalId = null;
 // 함수들
 const updateTime = () => {
   const now = new Date();
-  currentTime.value = now.toLocaleString('ko-KR');
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const date = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+  currentTime.value = `${year}.${month}.${date} ${hours}:${minutes}:${seconds}`;
 };
 
 // Scope 4: 실시간 상태 추적 시스템
@@ -464,7 +489,7 @@ const getProgressPercentage = (status) => {
 };
 
 const addExecutionLog = (message) => {
-  const timestamp = new Date().toLocaleString('ko-KR');
+  const timestamp = formatTimestamp(new Date());
   executionLogs.value.unshift({ timestamp, message });
   if (executionLogs.value.length > 50) {
     executionLogs.value.pop();
@@ -507,21 +532,21 @@ onUnmounted(() => {
 <style>
 /* Global CSS Variables */
 :root {
-  --color-bg-primary: #060810;
-  --color-bg-secondary: #0d101e;
-  --color-bg-dark: #04050a;
-  --color-text-primary: #f8fafc;
+  --color-bg-primary: #000000;
+  --color-bg-secondary: #1a1a1a;
+  --color-bg-dark: #0a0a0a;
+  --color-text-primary: #ffffff;
   --color-text-secondary: #94a3b8;
   --color-text-muted: #64748b;
-  --color-accent-text: #dfc399;
-  --color-accent: linear-gradient(135deg, #dfc399 0%, #c5a880 50%, #a88d67 100%);
-  --color-accent-hover: #c5a880;
-  --color-accent-dark: #a88d67;
+  --color-accent-text: #ffff00;
+  --color-accent: linear-gradient(135deg, #ffff00 0%, #ffeb3b 50%, #ffeb3b 100%);
+  --color-accent-hover: #ffeb3b;
+  --color-accent-dark: #ffeb3b;
   --color-success: #10b981;
   --color-error: #ef4444;
   --color-warning: #f59e0b;
-  --color-border: rgba(223, 195, 153, 0.15);
-  --glass-bg: rgba(13, 16, 30, 0.75);
+  --color-border: rgba(255, 255, 0, 0.15);
+  --glass-bg: rgba(26, 26, 26, 0.75);
   --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
 }
 
@@ -662,11 +687,18 @@ onUnmounted(() => {
 }
 
 .nav-menu li.active {
-  background: rgba(223, 195, 153, 0.12);
+  background: rgba(255, 255, 0, 0.12);
   color: var(--color-accent-text);
   font-weight: 600;
   box-shadow: inset 0 0 0 1px var(--color-border);
   border-left: 3px solid var(--color-accent-hover);
+}
+
+.nav-menu li.active::before {
+  content: '●';
+  color: #ef4444;
+  margin-right: 8px;
+  font-size: 14px;
 }
 
 .content {
