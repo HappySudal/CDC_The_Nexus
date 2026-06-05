@@ -15,16 +15,19 @@ export default defineConfig({
     host: '0.0.0.0',
     strictPort: false,
   },
+  ssr: {
+    external: ['discord.js'],
+  },
   build: {
     outDir: 'dist',
     emptyOutDir: true,
     chunkSizeWarningLimit: 500,
     rollupOptions: {
+      external: ['discord.js', 'dotenv'],
       output: {
         manualChunks: {
-          'vendor': ['vue', 'axios', 'discord.js'],
-          'charts': ['cytoscape'],
-          'components': ['./src/components/']
+          'vendor': ['vue', 'axios'],
+          'charts': ['cytoscape']
         },
       }
     }

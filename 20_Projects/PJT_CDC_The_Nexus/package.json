@@ -49,7 +49,7 @@
     "@vitest/ui": "^4.1.6",
     "@vue/test-utils": "^2.4.10",
     "concurrently": "^8.2.0",
-    "electron": "^28.0.0",
+    "electron": "^28.3.3",
     "electron-builder": "^24.6.0",
     "electron-playwright-helpers": "^2.1.0",
     "husky": "^9.1.7",
@@ -80,12 +80,6 @@
     "win": {
       "target": [
         {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
           "target": "portable",
           "arch": [
             "x64"
@@ -93,6 +87,8 @@
         }
       ],
       "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "certificateFile": null,
+      "certificatePassword": null,
       "signingHashAlgorithms": [
         "sha256"
       ],
@@ -103,19 +99,6 @@
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "deleteAppDataOnUninstall": false
-    },
-    "mac": {
-      "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        }
-      ],
-      "category": "public.app-category.productivity",
-      "artifactName": "${productName}-${version}-${arch}.${ext}"
     },
     "linux": {
       "target": [
