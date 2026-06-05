@@ -24,7 +24,9 @@ function createWindow() {
       contextIsolation: true,
       sandbox: true,
       enableRemoteModule: false
-    }
+    },
+    // GPU 비활성화로 캐시 접근 권한 문제 해결
+    disableGpu: true
   });
 
   const isDev = process.env.NODE_ENV === 'development';

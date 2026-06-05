@@ -74,6 +74,9 @@ export class DiscordBridge {
   async connectWithBot() {
     return new Promise((resolve) => {
       try {
+        console.log('[Discord Bridge] 🔌 Discord 봇 연결 시작...');
+        console.log(`[Discord Bridge] Guild: ${this.config.guildId}, Channel: ${this.config.channelId}`);
+
         this.client = new Client({
           intents: [
             GatewayIntentBits.Guilds,
@@ -83,43 +86,63 @@ export class DiscordBridge {
           ]
         });
 
+        console.log('[Discord Bridge] ✅ Client 객체 생성 완료, Intent 설정됨');
+
         this.client.on('ready', () => {
           console.log(`[Discord Bridge] ✅ Discord 봇 온라인: ${this.client.user.tag}`);
+          console.log(`[Discord Bridge] 봇 ID: ${this.client.user.id}`);
+          console.log(`[Discord Bridge] 수신 가능한 메시지 채널: #${this.config.channelId}`);
           this.config.isConnected = true;
           this.flushQueue();
           resolve(true);
         });
 
         this.client.on('messageCreate', (message) => {
-          console.log(`[Discord Bridge] 📨 원본 메시지 감지 (${message.author?.tag}): "${message.content}"`);
+          console.log(`[Discord Bridge] 📨 messageCreate 이벤트 발화`);
+          console.log(`[Discord Bridge]   - 작성자: ${message.author?.tag} (ID: ${message.author?.id})`);
+          console.log(`[Discord Bridge]   - 채널: #${message.channel?.name} (ID: ${message.channelId})`);
+          console.log(`[Discord Bridge]   - 내용: "${message.content}"`);
+          console.log(`[Discord Bridge]   - 봇인가? ${message.author?.bot}`);
+
           this.handleMessage(message);
         });
 
         this.client.on('error', (error) => {
-          console.error('[Discord Bridge] 봇 오류:', error);
+          console.error('[Discord Bridge] ❌ 봇 오류:', error.message);
+          console.error('[Discord Bridge]    ', error.stack);
         });
 
         this.client.on('warn', (info) => {
-          console.warn('[Discord Bridge] 경고:', info);
+          console.warn('[Discord Bridge] ⚠️  경고:', info);
         });
 
+        console.log('[Discord Bridge] 🔑 토큰으로 로그인 시도...');
         this.client.login(this.config.botToken);
       } catch (error) {
-        console.error('[Discord Bridge] 봇 연결 실패:', error);
+        console.error('[Discord Bridge] 💥 봇 연결 실패:', error);
+        console.error('[Discord Bridge]    ', error.stack);
         resolve(false);
       }
     });
   }
 
   handleMessage(message) {
-    // 봇 자신의 메시지 필터링
-    if (message.author.id === this.client.user?.id) return;
+    console.log(`[Discord Bridge] 🔍 handleMessage 호출됨`);
 
-    console.log(`[Discord Bridge] 📩 메시지 수신 (${message.author.tag}): ${message.content}`);
+    // 봇 자신의 메시지 필터링
+    if (message.author.id === this.client.user?.id) {
+      console.log(`[Discord Bridge] ⏭️  봇 자신의 메시지이므로 무시`);
+      return;
+    }
+
+    console.log(`[Discord Bridge] ✅ 메시지 수신 (${message.author.tag}): ${message.content}`);
 
     // 명령어 처리
     if (message.content.startsWith('!')) {
+      console.log(`[Discord Bridge] ⚡ 명령어 감지: ${message.content}`);
       this.handleCommand(message);
+    } else {
+      console.log(`[Discord Bridge] 💬 일반 메시지 (명령어 아님)`);
     }
   }
 
