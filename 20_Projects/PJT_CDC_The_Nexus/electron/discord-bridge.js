@@ -4,6 +4,7 @@
  * Supports command execution, status updates, and notifications
  */
 
+import { Client, GatewayIntentBits } from 'discord.js';
 import { knowledgeGraph } from './knowledge-graph.js';
 
 export class DiscordBridge {
@@ -19,6 +20,7 @@ export class DiscordBridge {
 
     this.messageQueue = [];
     this.commandHandlers = new Map();
+    this.client = null;
     this.registerDefaultHandlers();
   }
 
@@ -54,31 +56,125 @@ export class DiscordBridge {
     }
 
     try {
-      if (this.config.webhookUrl) {
+      // Bot 토큰이 있으면 Discord.js Client 사용
+      if (this.config.botToken) {
+        return await this.connectWithBot();
+      } else if (this.config.webhookUrl) {
         await this.validateWebhook();
-      } else if (this.config.botToken) {
-        await this.validateBotToken();
+        this.config.isConnected = true;
+        console.log('[Discord] Webhook connected');
+        return true;
       }
-
-      this.config.isConnected = true;
-      console.log('[Discord] Connected and ready');
-      return true;
     } catch (error) {
       console.error('[Discord] Connection failed:', error.message);
       return false;
     }
   }
 
+  async connectWithBot() {
+    return new Promise((resolve) => {
+      try {
+        this.client = new Client({
+          intents: [
+            GatewayIntentBits.Guilds,
+            GatewayIntentBits.GuildMessages,
+            GatewayIntentBits.MessageContent,
+            GatewayIntentBits.DirectMessages
+          ]
+        });
+
+        this.client.on('ready', () => {
+          console.log(`[Discord Bridge] ✅ Discord 봇 온라인: ${this.client.user.tag}`);
+          this.config.isConnected = true;
+          this.flushQueue();
+          resolve(true);
+        });
+
+        this.client.on('messageCreate', (message) => {
+          console.log(`[Discord Bridge] 📨 원본 메시지 감지 (${message.author?.tag}): "${message.content}"`);
+          this.handleMessage(message);
+        });
+
+        this.client.on('error', (error) => {
+          console.error('[Discord Bridge] 봇 오류:', error);
+        });
+
+        this.client.on('warn', (info) => {
+          console.warn('[Discord Bridge] 경고:', info);
+        });
+
+        this.client.login(this.config.botToken);
+      } catch (error) {
+        console.error('[Discord Bridge] 봇 연결 실패:', error);
+        resolve(false);
+      }
+    });
+  }
+
+  handleMessage(message) {
+    // 봇 자신의 메시지 필터링
+    if (message.author.id === this.client.user?.id) return;
+
+    console.log(`[Discord Bridge] 📩 메시지 수신 (${message.author.tag}): ${message.content}`);
+
+    // 명령어 처리
+    if (message.content.startsWith('!')) {
+      this.handleCommand(message);
+    }
+  }
+
+  async handleCommand(message) {
+    try {
+      const args = message.content.slice(1).trim().split(/ +/);
+      const command = args.shift().toLowerCase();
+
+      console.log(`[Discord Bridge] ⚡ 명령어: ${command}, 인자: ${args.join(' ')}`);
+
+      let response = '';
+
+      switch (command) {
+        case 'help':
+          response = '**The Nexus 봇 명령어**\n' +
+            '`!help` - 도움말\n' +
+            '`!status` - 봇 상태\n' +
+            '`!ask <질문>` - LLM에 질문\n' +
+            '`!nexus <메시지>` - Nexus 메시지 전송';
+          break;
+        case 'status':
+          response = `✅ 봇이 온라인입니다. (${new Date().toLocaleTimeString()})`;
+          break;
+        case 'ask':
+          if (args.length === 0) {
+            response = '질문을 입력해주세요: `!ask <질문>`';
+          } else {
+            const question = args.join(' ');
+            response = `🤔 질문: ${question}\n⏳ 응답 대기 중...`;
+            // LLM 호출은 나중에 IPC로 구현
+          }
+          break;
+        case 'nexus':
+          response = `✅ 메시지를 Nexus로 전달했습니다: ${args.join(' ')}`;
+          break;
+        default:
+          response = `❓ 알 수 없는 명령어: ${command}\n\`!help\`로 도움말을 확인하세요.`;
+      }
+
+      console.log(`[Discord Bridge] 📤 응답 준비: ${response.substring(0, 50)}...`);
+      await message.reply(response);
+      console.log(`[Discord Bridge] ✅ 응답 전송 완료`);
+    } catch (error) {
+      console.error(`[Discord Bridge] 명령어 처리 오류:`, error);
+      try {
+        await message.reply(`⚠️ 오류가 발생했습니다: ${error.message}`);
+      } catch (replyError) {
+        console.error(`[Discord Bridge] 오류 응답 전송 실패:`, replyError);
+      }
+    }
+  }
+
   async validateWebhook() {
     const response = await fetch(this.config.webhookUrl, { method: 'GET' });
     if (!response.ok) throw new Error('Webhook validation failed');
-  }
-
-  async validateBotToken() {
-    const response = await fetch('https://discord.com/api/v10/users/@me', {
-      headers: { Authorization: `Bot ${this.config.botToken}` }
-    });
-    if (!response.ok) throw new Error('Bot token validation failed');
   }
 
   // Message sending
@@ -91,7 +187,9 @@ export class DiscordBridge {
     try {
       const payload = this.formatMessage(content, options);
 
-      if (this.config.webhookUrl) {
+      if (this.client && this.config.botToken) {
+        return await this.sendViaBotClient(payload);
+      } else if (this.config.webhookUrl) {
         return await this.sendViaWebhook(payload);
       } else if (this.config.botToken) {
         return await this.sendViaBotAPI(payload);
@@ -100,6 +198,31 @@ export class DiscordBridge {
       console.error('[Discord] Send failed:', error);
       this.messageQueue.push({ content, options, timestamp: new Date() });
       return null;
+    }
+  }
+
+  async sendViaBotClient(payload) {
+    try {
+      const channel = await this.client.channels.fetch(this.config.channelId);
+      if (!channel) throw new Error('Channel not found');
+      return await channel.send(payload);
+    } catch (error) {
+      console.error('[Discord] Bot client send failed:', error);
+      throw error;
+    }
+  }
+
+  async flushQueue() {
+    console.log(`[Discord Bridge] 큐 비우는 중 (${this.messageQueue.length}개 메시지)...`);
+    while (this.messageQueue.length > 0) {
+      const { content, options } = this.messageQueue.shift();
+      try {
+        await this.sendMessage(content, options);
+        await new Promise(resolve => setTimeout(resolve, 500)); // Rate limit protection
+      } catch (error) {
+        console.error('[Discord] Failed to flush queue item:', error);
+        break;
+      }
     }
   }
 
@@ -198,16 +321,6 @@ export class DiscordBridge {
     await this.sendMessage(embed, { title: 'Graph Update' });
   }
 
-  // Process queued messages when connection restored
-  async flushQueue() {
-    if (!this.config.isConnected) return;
-
-    const queue = this.messageQueue.splice(0);
-    for (const msg of queue) {
-      await this.sendMessage(msg.content, msg.options);
-    }
-  }
-
   // Statistics
   getStats() {
     return {
@@ -219,7 +332,14 @@ export class DiscordBridge {
   }
 }
 
-export const discordBridge = new DiscordBridge();
+// 환경 변수에서 설정 읽기
+const config = {
+  botToken: process.env.DISCORD_TOKEN,
+  guildId: process.env.DISCORD_GUILD_ID,
+  channelId: process.env.DISCORD_CHANNEL_ID
+};
 
-// "시각(時刻)에 존재하고, 시간(時間) 에 소멸한다."
+export const discordBridge = new DiscordBridge(config);
+
+// "시각(時刻)에 존재하고, 시간(時間)에 소멸한다."
 // "Exists in the Moment, Vanishes in Time."

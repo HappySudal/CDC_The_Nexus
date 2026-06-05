@@ -1,4 +1,5 @@
-﻿import { app, BrowserWindow, Menu } from 'electron';
+﻿import 'dotenv/config.js';
+import { app, BrowserWindow, Menu } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { initializeIpcHandlers, setupPreloadBridge } from './ipc-handlers.js';
