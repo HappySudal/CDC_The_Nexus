@@ -1,6 +1,6 @@
 {
   "name": "the-nexus",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "CDC 인격형 AI 인터페이스 - 의장님과 15사도를 연결하는 중추 플랫폼",
   "type": "module",
   "main": "electron/main.js",
