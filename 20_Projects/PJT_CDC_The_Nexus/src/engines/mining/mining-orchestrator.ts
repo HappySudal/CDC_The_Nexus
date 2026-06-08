@@ -6,6 +6,10 @@
 import { IMiner, MiningResult } from './types/mining.types';
 import { GeminiMiner } from './miners/gemini-miner';
 import { DiscordMiner } from './miners/discord-miner';
+import { CalendarMiner } from './miners/calendar-miner';
+import { FileMiner } from './miners/file-miner';
+import { YouTubeMiner } from './miners/youtube-miner';
+import { SystemLogMiner } from './miners/system-log-miner';
 
 export class MiningOrchestrator {
   private miners: IMiner[] = [];
@@ -24,11 +28,10 @@ export class MiningOrchestrator {
     this.miners = [
       new GeminiMiner(),
       new DiscordMiner(),
-      // TODO: 추가 마이너들
-      // new CalendarMiner(),
-      // new FileMiner(),
-      // new YouTubeMiner(),
-      // new SystemLogMiner(),
+      new CalendarMiner(),
+      new FileMiner(),
+      new YouTubeMiner(),
+      new SystemLogMiner(),
     ];
 
     console.log(`✅ ${this.miners.length}개 마이너 준비 완료`);
