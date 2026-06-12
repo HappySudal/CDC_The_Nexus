@@ -517,14 +517,14 @@ cross_system_audit:
 # ============================================================================
 session_start_triggers:
   - type: "Greeting / call"
-    examples: ["안녕", "클로드야", "시동 걸어", "준비됐어?"]
-    action: "Immediate 3-step routine"
+    examples: ["안녕", "클로드야", "영민", "시동 걸어", "준비됐어?"]
+    action: "Immediate startup routine"
   - type: "Work directive (without routine)"
     examples: ["이거 해줘", "확인해줘", "진행해"]
     action: "Run routine first, then work"
   - type: "Connection check"
     examples: ["있어?", "테스트", "Continue"]
-    action: "Immediate 3-step routine"
+    action: "Immediate startup routine"
   - type: "Sacred file open"
     examples: ["IDE에서 파일 오픈 후 첫 발화"]
     action: "Routine priority over file context"
@@ -755,6 +755,64 @@ project_buildup_workflow:
       - "PROJECT_GOALS.md 무단 수정 (목표는 STEP 1에서만 결정)"
       - "사이클 카운터 임의 조작"
       - "STEP 7 (배포)를 STEP 6 승인 없이 실행"
+
+# ============================================================================
+# SHUTDOWN PROTOCOL — Session Termination & Report Generation
+# ============================================================================
+shutdown_protocol:
+  trigger:
+    keywords: ["오늘은 여기까지", "수고했어", "끝내자", "종료", "마무리"]
+    pattern_regex: "(여기까지|수고|끝|종료|마무리)"
+    examples: ["오늘은 여기까지 하자", "수고했어", "마무리하자"]
+    skippable: false
+
+  action: "자동 리포트 3종 생성"
+
+  reports:
+    - id: 1
+      type: "daily"
+      save_path: "05_Reports/Report_Daily"
+      filename_pattern: "DailyReport_{yyyymmdd}_{seq}_{topic}_{model}.md"
+      description: "일일 작업 현황 리포트"
+
+    - id: 2
+      type: "cdc"
+      save_path: "05_Reports/Report_CDC"
+      filename_pattern: "CDC_Report_{yyyymmdd}_{seq}_{topic}_{model}.md"
+      description: "CDC 플랫폼 현황 리포트"
+
+    - id: 3
+      type: "project"
+      save_path: "{current_project_root}/Report"
+      filename_pattern: "{project_name}_Report_{yyyymmdd}_{seq}_{topic}_{model}.md"
+      description: "개별 프로젝트 리포트"
+
+  filename_rules:
+    date_format: "yyyymmdd (ISO 8601)"
+    sequence: "auto_increment (00, 01, 02, ... 같은 날 중복 시)"
+    topic: "리포트 주요 내용 (한글 또는 영문)"
+    model: "AI 모델명 (예: ClaudeHaiku45, Gemini3Flash, Antigravity)"
+    encoding: "UTF-8"
+
+  report_content:
+    format: "5열 도표 (구분 / 변경전 / 변경후 / 잔여업무 / 비고)"
+    mandatory_sections:
+      - "세션 요약"
+      - "완료 업무"
+      - "물리적 검증 hash"
+      - "잔여 업무"
+      - "비고"
+    footer_slogan: true
+    slogan: |
+      **"시각(時刻)에 존재하고, 시간(時間)에 소멸한다."**
+      **"Exists in the Moment, Vanishes in Time."**
+
+  sequence_handling:
+    rule: "하루 내 같은 리포트 여러 개 생성 시 자동 순번 증가"
+    examples:
+      - "DailyReport_20260613_00_Phase2완료_ClaudeHaiku45.md"
+      - "DailyReport_20260613_01_종료프로토콜추가_ClaudeHaiku45.md"
+      - "DailyReport_20260613_02_최적화_ClaudeHaiku45.md"
 
 # ============================================================================
 # LEGACY INTEGRATION — Files absorbed into this constitution
