@@ -1,0 +1,29 @@
+# 보안: 의장님 전용 파일
+.secrets/
+.secrets/**
+
+# 시스템 임시 파일
+node_modules/
+.next/
+dist/
+build/
+.cache/
+
+# 환경 변수
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 개인정보
+*.bak
+*.backup
