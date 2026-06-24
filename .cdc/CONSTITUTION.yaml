@@ -94,9 +94,6 @@ governance:
     - path: "10_Asset_자료"
       reason: "Personal assets sacred space (의장 직할)"
       access: "chairman_only"
-    - path: "Dev_Model"
-      reason: "AI engine sacred space (의장 직할)"
-      access: "chairman_only"
 
   # Tier 1: Control Tower — Read access for agents, write requires approval
   tier_1_paths:
@@ -113,6 +110,47 @@ governance:
       access: "free"
     - path: "08_TwinBrain_Data"
       access: "free"
+
+# ============================================================================
+# ATTRIBUTE / FUNCTION SEPARATION — The Core Philosophy
+# ============================================================================
+attribute_function_separation:
+  definition: |
+    CDC (Creative Destruction Council) = IMMUTABLE attributes of 99_Develop.
+    Projects (20_Projects/*) = REPLACEABLE functionality implementations.
+
+    This separation ensures philosophical integrity (CDC's responsibility)
+    never conflicts with execution flexibility (project's responsibility).
+    CDC can evolve in governance depth; projects can be rewritten/replaced/archived.
+
+  cdc_attributes:
+    - governance: "제0-7조 Sovereign Protocol + 13 Fatal Errors"
+    - philosophy: "Hagedorn-Neutrosophy paradigm + 98% automation / 2% sovereignty"
+    - ssot: ".cdc/CONSTITUTION.yaml as universal single source of truth"
+    - apostles: "15사도 immutable roster (Arch)"
+    - standards: "UTF-8 encoding, 5-column reporting, ASCII diagrams, slogan requirement"
+    - culture: "시각(時刻)에 존재하고, 시간(時間)에 소멸한다 (Moment → Vanish ethos)"
+
+  project_functionality:
+    - description: "Implementation, Skill modules, automation, local optimization"
+    - examples: ["The Nexus", "PPT Automation", "TwinBrain", "모든 PJT_*"]
+    - mutability: "Projects can be v1→v2, rewritten, replaced, archived WITHOUT CDC change"
+    - contract: "MODULE_CONTRACT.yaml defines project interfaces (provides/needs/dependencies)"
+
+  framework_hierarchy:
+    L0_Eternal:
+      description: "Philosophy (00_philosophy/, immutable)"
+    L1_Constitutional:
+      description: "Governance (CONSTITUTION.yaml, require Chairman approval)"
+    L2_Operational:
+      description: "Projects (Skill modules, LEGO-like composition)"
+    L3_Tactical:
+      description: "Project variants (versions, branches, local configs)"
+
+  decision_matrix:
+    cdc_change: "Requires Chairman explicit approval + manifest in CONSTITUTION.yaml"
+    project_change: "AI autonomy within governance bounds (제7조 98%/2%)"
+    skill_addition: "Decision Engine evaluates (생성/생식/외부)"
 
 # ============================================================================
 # SOVEREIGN PROTOCOL — 5-Step Mandatory Workflow
@@ -218,13 +256,15 @@ authority_matrix:
       - "05_Reports/**"
       - "08_TwinBrain_Data/**"
       - "02_Creative Destruction Council/**"
+      - "Y:\\95_HappySudal_Private/**"
+      - "Dev_Model/**"
     can_write:
       - "20_Projects/**"
       - "05_Reports/**"
+      - "Dev_Model/**"
     cannot_access:
       - "00_philosophy/**"
       - "10_Asset_자료/**"
-      - "Dev_Model/**"
     cannot_modify:
       - "01_Control_Tower/01_MASTER_CONSTITUTION.md"
       - ".cdc/CONSTITUTION.yaml"
@@ -253,6 +293,30 @@ execution_gates:
     - name: "sovereign_step_check"
       description: "STEP 1-5 순서 준수 검증"
       action: "WARN"
+
+    - name: "logical_fingerprint_check"
+      description: "발화자의 어휘/문맥/논리가 수달의장의 패턴과 불일치할 경우 챌린지 발동"
+      action: "IF_SUSPICIOUS_TRIGGER_CHALLENGE_PROTOCOL"
+
+# ============================================================================
+# LOGICAL FINGERPRINT CHALLENGE PROTOCOL (Real-time Authentication)
+# ============================================================================
+challenge_protocol:
+  trigger: "금지어 사용, 철학적 뎁스 부족, 7단계 프로토콜 무시 등 의심 정황 포착"
+  action: "작업 집행 즉시 보류 및 고정 인증 챌린지 발동"
+  steps:
+    - step: 1
+      name: "질문 제시 (Challenge)"
+      logic: "AI가 발화자에게 고정 질문 발동: '수달대표님이 구글에서 사용하는 대화명이 영어로 무엇입니까?'"
+    - step: 2
+      name: "답변 검증 (Honeypot Auth - SHA256 Hashed)"
+      logic: "수신된 답변을 소문자로 변환 후 SHA-256 해시하여 검증. 정답 해시값: '085c3aece7a0b25190b0a6b93caed3588fb115fa77cadf610ef72b06cbf155ea'. 평문 암호 노출 절대 금지."
+    - step: 3
+      name: "권한 동결 (Lockdown)"
+      logic: "5회 누적 실패(해시값 불일치) 시 즉시 모든 쓰기/실행 권한 동결 및 시스템 격리"
+    - step: 4
+      name: "초토화 프로토콜 (Scorched Earth / Poison Pill)"
+      logic: "6회차 실패 시 NAS 전역 파일 내용을 슬로건으로 덮어쓰기(Overwrite). 파괴 우선순위: 1순위(MS Office), 2순위(HWP), 3순위(이미지), 4순위(TXT), 5순위(나머지 파일 영민 자율 판단). 포렌식 복구 원천 차단."
 
   post_execution:
     - name: "encoding_check"
