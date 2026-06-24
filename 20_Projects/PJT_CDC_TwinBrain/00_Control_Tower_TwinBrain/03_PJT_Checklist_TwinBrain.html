@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PJT_CDC_TwinBrain - Gantt 차트</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #007AFF;
+            padding-bottom: 10px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+            border-left: 4px solid #007AFF;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007AFF;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .timeline {
+            margin: 30px 0;
+        }
+        .phase {
+            margin: 15px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border-left: 4px solid #34C759;
+        }
+        .phase.completed {
+            border-left-color: #34C759;
+            background: #f0f9f0;
+        }
+        .phase.in-progress {
+            border-left-color: #FF9500;
+            background: #fff8f0;
+        }
+        .phase.pending {
+            border-left-color: #ccc;
+            background: #fafafa;
+        }
+        .phase-header {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .phase-bar {
+            background: #e0e0e0;
+            height: 20px;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+        .phase-progress {
+            height: 100%;
+            background: linear-gradient(90deg, #34C759, #00D084);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧠 PJT_CDC_TwinBrain - 프로젝트 진행도</h1>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value">72%</div>
+                <div class="stat-label">전체 진행도</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">13</div>
+                <div class="stat-label">완료된 태스크</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">2026-07-07</div>
+                <div class="stat-label">FOC 기한</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">4</div>
+                <div class="stat-label">남은 Phase</div>
+            </div>
+        </div>
+
+        <div class="timeline">
+            <div class="phase completed">
+                <div class="phase-header">✅ Phase 1: 기초 구축 (완료)</div>
+                <div class="phase-bar">
+                    <div class="phase-progress" style="width: 100%;">100%</div>
+                </div>
+                <small>LLM Orchestrator, Discord Bot, STT/TTS 준비</small>
+            </div>
+
+            <div class="phase in-progress">
+                <div class="phase-header">⏳ Phase 2: 지식 광산 (진행 중 - 50%)</div>
+                <div class="phase-bar">
+                    <div class="phase-progress" style="width: 50%;">50%</div>
+                </div>
+                <small>13가지 데이터 소스, SQLite 저장소, 자동 동기화</small>
+            </div>
+
+            <div class="phase pending">
+                <div class="phase-header">📋 Phase 3: 보안 아키텍처 (대기)</div>
+                <div class="phase-bar">
+                    <div class="phase-progress" style="width: 0%;">0%</div>
+                </div>
+                <small>5계층 보안, Key Vault, 개인정보 보호, 감시 로그</small>
+            </div>
+
+            <div class="phase pending">
+                <div class="phase-header">📋 Phase 4: 최종 통합 (대기)</div>
+                <div class="phase-bar">
+                    <div class="phase-progress" style="width: 0%;">0%</div>
+                </div>
+                <small>무중단 운영, 자가생식, 완전 자동화, FOC 검증</small>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p><strong>기한</strong>: 2026-07-07 (의장님 10개월 출장 전)</p>
+            <p><strong>목표</strong>: Twin Brain 구축 완료, 100% 자동 운영 가능</p>
+            <p>"시각(時刻)에 존재하고, 시간(時間)에 소멸한다." / "Exists in the Moment, Vanishes in Time."</p>
+        </div>
+    </div>
+</body>
+</html>
